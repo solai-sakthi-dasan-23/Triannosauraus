@@ -2471,14 +2471,16 @@ function showAuthToast(msg) {
 
   const toast = document.createElement("div");
   toast.className = "auth-toast";
-  toast.innerHTML = `<span>🛡️</span> <span>${msg}</span>`;
+  toast.textContent = msg;
   document.body.appendChild(toast);
 
+  // Trigger reflow then add show class for CSS animation
+  toast.offsetHeight;
+  toast.classList.add("show");
+
   setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateY(20px)";
-    toast.style.transition = "all 0.3s ease";
-    setTimeout(() => toast.remove(), 300);
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 400);
   }, 4000);
 }
 window.showAuthToast = showAuthToast;
