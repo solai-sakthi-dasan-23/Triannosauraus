@@ -2443,3 +2443,368 @@ body.auth-locked .auth-close-btn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ═══════════════════════════════════════════════════ MULTI-DEVICE RESPONSIVE SYSTEM ═══ */
+
+/* Mobile Hamburger Button Styling */
+.mobile-menu-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 34px;
+  height: 34px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 7px;
+  cursor: pointer;
+  margin-right: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-btn:hover {
+  border-color: var(--orange);
+  background: var(--bg-card-subtle);
+}
+
+.hamburger-line {
+  width: 100%;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transition: all 0.25s ease;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 105;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ────────────────────────────────────── 1. LARGE TV / 4K DISPLAYS (min-width: 1920px) ─── */
+@media screen and (min-width: 1920px) {
+  :root {
+    font-size: 17px;
+  }
+
+  .app-sidebar {
+    width: 290px;
+  }
+
+  .app-page {
+    max-width: 1800px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .top-kpi-ribbon {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .analytics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cal-calendar-grid {
+    gap: 8px;
+  }
+
+  .cal-day-cell {
+    min-height: 105px;
+  }
+
+  .flight-card {
+    padding: 1.5rem 1.75rem;
+  }
+}
+
+/* ────────────────────────────────────── 2. LAPTOPS & DESKTOPS (1025px - 1440px) ─── */
+@media screen and (max-width: 1440px) {
+  .top-kpi-ribbon {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+
+  .analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .app-topbar {
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+/* ────────────────────────────────────── 3. TABLETS & SMALL LAPTOPS (769px - 1024px) ─── */
+@media screen and (max-width: 1024px) {
+  .app-sidebar {
+    width: 230px;
+  }
+
+  .brand-title {
+    font-size: 1.05rem;
+  }
+
+  .top-kpi-ribbon {
+    grid-template-columns: repeat(3, 1fr);
+    padding: 0.85rem 1rem;
+  }
+
+  .app-page {
+    padding: 1.25rem 1rem;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flight-matrix {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cal-month-stat-card {
+    padding: 0.65rem 0.85rem;
+  }
+
+  .mt5-status-row {
+    font-size: 0.78rem;
+  }
+
+  .topbar-center .session-pill {
+    display: none;
+  }
+}
+
+/* ────────────────────────────────────── 4. MOBILE PHONES & PORTRAIT TABLETS (max-width: 768px) ─── */
+@media screen and (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  /* Drawer Sidebar */
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    height: 100vh;
+    width: 270px;
+    z-index: 110;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.85);
+  }
+
+  .app-sidebar.mobile-open {
+    transform: translateX(280px);
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+  }
+
+  .app-main-viewport {
+    width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Responsive Topbar */
+  .app-topbar {
+    padding: 0.65rem 0.85rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .page-breadcrumb .crumb-sep,
+  .page-breadcrumb .crumb-active {
+    display: none;
+  }
+
+  .topbar-center {
+    display: none;
+  }
+
+  .topbar-right {
+    gap: 0.4rem;
+  }
+
+  .mt5-status-pill {
+    padding: 0.3rem 0.6rem;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.7rem;
+  }
+
+  #ws-badge {
+    display: none;
+  }
+
+  #btn-simulate-trade {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .user-name,
+  .user-tier {
+    display: none;
+  }
+
+  .user-profile-pill {
+    padding: 0.25rem 0.4rem;
+  }
+
+  /* Responsive KPI Ribbon */
+  .top-kpi-ribbon {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 0.65rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .kpi-mini-card {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .kpi-mini-value {
+    font-size: 1.15rem;
+  }
+
+  /* App Page Layouts */
+  .app-page {
+    padding: 0.85rem 0.65rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  /* Calendar Matrix */
+  .cal-top-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .cal-summary-strip {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .cal-calendar-grid {
+    overflow-x: auto;
+    min-width: 600px;
+  }
+
+  .cal-grid-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tables horizontal scroll */
+  .table-responsive,
+  .table-responsive-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    display: block;
+  }
+
+  .data-table,
+  .journal-table {
+    min-width: 760px !important;
+  }
+
+  /* Filter bar */
+  .filter-matrix-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.65rem !important;
+  }
+
+  .filter-confirmation-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .conf-kpis {
+    flex-wrap: wrap;
+    gap: 0.85rem;
+  }
+
+  .conf-kpi-item {
+    align-items: flex-start;
+  }
+
+  /* Copilot Cards */
+  .flight-matrix {
+    grid-template-columns: 1fr;
+  }
+
+  .flight-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .copilot-action-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Modal Dialogs */
+  .auth-card {
+    width: 95vw;
+    margin: 0.5rem;
+    border-radius: 12px;
+  }
+
+  .auth-body {
+    padding: 1.15rem 1rem;
+  }
+
+  .auth-security-footer {
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.65rem 1rem;
+  }
+
+  .chart-modal-container {
+    width: 96vw;
+    max-height: 90vh;
+  }
+
+  .chart-modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+/* ────────────────────────────────────── 5. SMALL MOBILE DEVICES (max-width: 420px) ─── */
+@media screen and (max-width: 420px) {
+  .top-kpi-ribbon {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-auth-trigger {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.72rem;
+  }
+
+  .mt5-status-pill {
+    display: none;
+  }
+
+  .demo-buttons-row {
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+}

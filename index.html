@@ -17,6 +17,9 @@
 
   <div class="app-layout">
     
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleMobileSidebar(false)"></div>
+
     <!-- ═══════════════════════════════════════════════════ SIDEBAR NAVIGATION ═══ -->
     <aside class="app-sidebar" id="app-sidebar">
       <div class="sidebar-header">
@@ -86,6 +89,11 @@
       <!-- Top Institutional Bar -->
       <header class="app-topbar">
         <div class="topbar-left">
+          <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Toggle Navigation Menu">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+          </button>
           <div class="page-breadcrumb">
             <span class="crumb-app">Tri Rex</span>
             <span class="crumb-sep">/</span>

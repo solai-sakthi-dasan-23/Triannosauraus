@@ -71,8 +71,34 @@ function navigateTo(pageId) {
   if (crumbTitle && PAGE_TITLES[pageId]) {
     crumbTitle.textContent = PAGE_TITLES[pageId];
   }
+
+  // If on mobile / tablet, auto-close sidebar drawer on navigation
+  if (window.innerWidth <= 768) {
+    toggleMobileSidebar(false);
+  }
 }
 window.navigateTo = navigateTo;
+
+// Mobile Sidebar Drawer Control
+function toggleMobileSidebar(forceState) {
+  const sidebar = document.getElementById("app-sidebar");
+  const backdrop = document.getElementById("sidebar-backdrop");
+  if (!sidebar) return;
+
+  const isOpen = sidebar.classList.contains("mobile-open");
+  const shouldOpen = (forceState !== undefined) ? forceState : !isOpen;
+
+  if (shouldOpen) {
+    sidebar.classList.add("mobile-open");
+    if (backdrop) backdrop.classList.add("active");
+    document.body.style.overflow = "hidden";
+  } else {
+    sidebar.classList.remove("mobile-open");
+    if (backdrop) backdrop.classList.remove("active");
+    document.body.style.overflow = "";
+  }
+}
+window.toggleMobileSidebar = toggleMobileSidebar;
 
 // --- CLOCK & SESSION TRACKING ---
 function setupMarketClock() {
