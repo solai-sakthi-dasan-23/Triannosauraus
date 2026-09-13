@@ -2374,6 +2374,8 @@ window.handleAuthSignUp = handleAuthSignUp;
 
 // Securely dispatch verification email
 function dispatchVerificationEmail(email, code, name = "Trader") {
+  const helperMsg = document.getElementById("verify-helper-msg");
+
   // 1. Try serverless mail API endpoint
   try {
     fetch("/api/send_otp", {
@@ -2382,6 +2384,9 @@ function dispatchVerificationEmail(email, code, name = "Trader") {
       body: JSON.stringify({ email: email, code: code, name: name })
     }).then(res => res.json()).then(data => {
       console.log("[Auth] Security verification email dispatch response:", data);
+      if (data && data.mail_sent) {
+        showAuthToast(`Verification email successfully delivered to ${email}`);
+      }
     }).catch(err => {
       console.warn("[Auth] Email dispatch network note:", err);
     });
@@ -2403,8 +2408,18 @@ function dispatchVerificationEmail(email, code, name = "Trader") {
           emailRedirectTo: redirectUrl
         }
       }).then(({ data, error }) => {
-        if (error) console.log("[Supabase Auth] Note on signInWithOtp:", error.message);
-        else console.log("[Supabase Auth] OTP triggered via Supabase cloud mailer with redirect to:", redirectUrl);
+        if (error) {
+          console.warn("[Supabase Auth] Note on signInWithOtp:", error.message);
+          if (error.message && error.message.toLowerCase().includes("rate limit")) {
+            if (helperMsg) {
+              helperMsg.innerHTML = `<span style="color:var(--gold);">Notice: Supabase free tier email limit exceeded (3/hr). If your email is delayed, wait a few minutes or click Resend Code.</span>`;
+            }
+            showAuthToast("⚠️ Email rate limit hit on Supabase. Retrying via secondary channel...");
+          }
+        } else {
+          console.log("[Supabase Auth] OTP triggered via Supabase cloud mailer with redirect to:", redirectUrl);
+          showAuthToast(`Verification link & code dispatched to ${email}`);
+        }
       }).catch(err => {
         console.warn("[Supabase Auth] Delivery note:", err);
       });
