@@ -13,7 +13,7 @@
   <!-- Supabase Client for Real Authentication & OAuth -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body class="auth-locked">
 
   <div class="app-layout">
     
@@ -782,7 +782,7 @@
   </div>
 
   <!-- ────────────────────────────────────────── CUSTOMER SECURE AUTH MODAL ─── -->
-  <div class="auth-modal-overlay" id="auth-modal-overlay" style="display: none;" onclick="closeAuthModal(event)">
+  <div class="auth-modal-overlay" id="auth-modal-overlay" onclick="closeAuthModal(event)">
     <div class="auth-card" onclick="event.stopPropagation()">
       <div class="auth-card-banner">
         <button class="auth-close-btn" onclick="closeAuthModal()">✕</button>
