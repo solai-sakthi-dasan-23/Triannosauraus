@@ -2249,9 +2249,12 @@ function handleGoogleSSOSubmit(event) {
   localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingUser));
   closeGoogleSSOModal();
 
-  // Route directly to OTP verification view
-  showVerificationScreen(email, currentVerificationCode);
-  showAuthToast(`✉️ Verification code sent to Google email: ${email}`);
+  // Dispatch email with 6-digit OTP
+  dispatchVerificationEmail(email, currentVerificationCode, finalName);
+
+  // Route directly to OTP verification view without leaking code
+  showVerificationScreen(email);
+  showAuthToast(`Security verification code dispatched to ${email}`);
 }
 window.handleGoogleSSOSubmit = handleGoogleSSOSubmit;
 
@@ -2341,12 +2344,53 @@ function handleAuthSignUp(event) {
 
   localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingUser));
 
-  // Switch to the 6-digit verification screen
-  showVerificationScreen(email, currentVerificationCode);
+  // Trigger outbound email delivery via /api/send_otp and Supabase
+  dispatchVerificationEmail(email, currentVerificationCode, name);
+
+  // Switch to the 6-digit verification screen (without exposing code in DOM)
+  showVerificationScreen(email);
 }
 window.handleAuthSignUp = handleAuthSignUp;
 
-function showVerificationScreen(email, code) {
+// Securely dispatch verification email
+function dispatchVerificationEmail(email, code, name = "Trader") {
+  // 1. Try serverless mail API endpoint
+  try {
+    fetch("/api/send_otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, code: code, name: name })
+    }).then(res => res.json()).then(data => {
+      console.log("[Auth] Security verification email dispatch response:", data);
+    }).catch(err => {
+      console.warn("[Auth] Email dispatch network note:", err);
+    });
+  } catch (e) {
+    console.warn("[Auth] Dispatch error:", e);
+  }
+
+  // 2. Also invoke Supabase auth signInWithOtp if initialized
+  try {
+    if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.signInWithOtp === "function") {
+      supabaseClient.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: true
+        }
+      }).then(({ data, error }) => {
+        if (error) console.log("[Supabase Auth] Note on signInWithOtp:", error.message);
+        else console.log("[Supabase Auth] OTP triggered via Supabase cloud mailer");
+      }).catch(err => {
+        console.warn("[Supabase Auth] Delivery note:", err);
+      });
+    }
+  } catch (e) {
+    // Graceful fallback
+  }
+}
+window.dispatchVerificationEmail = dispatchVerificationEmail;
+
+function showVerificationScreen(email) {
   const signinForm = document.getElementById("auth-signin-form");
   const signupForm = document.getElementById("auth-signup-form");
   const verifyView = document.getElementById("auth-verify-view");
@@ -2364,7 +2408,7 @@ function showVerificationScreen(email, code) {
 
   if (targetEmail) targetEmail.textContent = email;
   if (helperMsg) {
-    helperMsg.innerHTML = `Security verification code sent! (Your code is: <strong style="color:var(--cyan);letter-spacing:2px;">${code}</strong>)`;
+    helperMsg.innerHTML = "Enter the 6-digit confirmation code sent to your email to verify your identity and activate terminal access.";
   }
 
   // Clear digits and focus first
@@ -2376,8 +2420,9 @@ function showVerificationScreen(email, code) {
   }
 
   startVerificationCountdown(45);
-  showAuthToast(`✉️ Verification code sent to ${email}`);
+  showAuthToast(`Security confirmation code dispatched to ${email}`);
 }
+window.showVerificationScreen = showVerificationScreen;
 
 function showSetPasswordScreen(email) {
   const signinForm = document.getElementById("auth-signin-form");
@@ -2593,8 +2638,11 @@ function resendVerificationCode() {
   pending.code = currentVerificationCode;
   localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pending));
 
-  showVerificationScreen(pending.email, currentVerificationCode);
-  showAuthToast(`🔄 New verification code generated: ${currentVerificationCode}`);
+  // Re-dispatch email with new code
+  dispatchVerificationEmail(pending.email, currentVerificationCode, pending.name || "Trader");
+
+  showVerificationScreen(pending.email);
+  showAuthToast(`A new confirmation code has been dispatched to ${pending.email}`);
 }
 window.resendVerificationCode = resendVerificationCode;
 

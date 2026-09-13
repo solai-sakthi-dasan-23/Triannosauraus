@@ -795,6 +795,58 @@ async def sync_mt5_trades():
         "account": mt5_account_config
     }
 
+class SendOTPRequest(BaseModel):
+    email: str
+    code: str
+    name: Optional[str] = "Trader"
+
+@app.post("/api/send_otp")
+async def send_otp_endpoint(req: SendOTPRequest):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    email = req.email.strip()
+    code = req.code.strip()
+    name = (req.name or "Trader").strip()
+
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", os.environ.get("GMAIL_USER", ""))
+    smtp_pass = os.environ.get("SMTP_PASS", os.environ.get("GMAIL_PASS", ""))
+    from_email = os.environ.get("SMTP_FROM", smtp_user or "security@triannosaraustraders.com")
+
+    mail_sent = False
+    mail_error = None
+
+    if smtp_user and smtp_pass:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = f"Tri Rex Security Code: {code} - Verify Terminal Access"
+            msg["From"] = f"Tri Rex Security <{from_email}>"
+            msg["To"] = email
+
+            text_content = f"Hello {name},\n\nYour institutional security verification code for Tri Rex Terminal is: {code}\n\nPlease enter this 6-digit confirmation code into the portal to complete your registration. This code expires in 10 minutes.\n\nTriannosaraus Traders - Born to Conquer"
+            part1 = MIMEText(text_content, "plain")
+            msg.attach(part1)
+
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(from_email, [email], msg.as_string())
+            server.quit()
+            mail_sent = True
+        except Exception as e:
+            mail_error = str(e)
+
+    return {
+        "ok": True,
+        "mail_sent": mail_sent,
+        "email": email,
+        "smtp_configured": bool(smtp_user and smtp_pass),
+        "note": "Code dispatched via SMTP" if mail_sent else ("SMTP pending configuration" if not mail_error else f"Mail note: {mail_error}")
+    }
+
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

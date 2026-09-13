@@ -30,6 +30,10 @@
       "dest": "/api/mt5_status"
     },
     {
+      "src": "^/api/send_otp$",
+      "dest": "/api/send_otp"
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }
