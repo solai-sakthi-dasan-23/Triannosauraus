@@ -1987,11 +1987,31 @@ function handleOAuthRedirectHash() {
           registeredAt: new Date().toISOString()
         };
 
-        saveRegisteredUser(googleUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(googleUser));
-        applyAuthenticatedUserUI(googleUser);
-        closeAuthModal();
-        showAuthToast(`⚡ Google Sign-In Verified! Welcome, ${name}.`);
+        // If user already has a saved password, log them in directly
+        const users = getRegisteredUsers();
+        const existing = users[userData.email.toLowerCase()];
+        if (existing && existing.password) {
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(existing));
+          applyAuthenticatedUserUI(existing);
+          closeAuthModal();
+          showAuthToast(`Welcome back, ${existing.name}!`);
+        } else {
+          // New registration: prompt user to create their master account password
+          const pendingUser = {
+            name: name,
+            email: userData.email,
+            auth_provider: "magic_link",
+            tier: "APEX INSTITUTIONAL",
+            account_id: "TR-" + Math.floor(10000000 + Math.random() * 90000000),
+            avatar: initials,
+            verified: true,
+            registeredAt: new Date().toISOString()
+          };
+          localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingUser));
+          lockToAuthScreen();
+          showSetPasswordScreen(userData.email);
+          showAuthToast(`Email confirmed! Please create your master account password.`);
+        }
 
         // Clean up hash from URL bar cleanly
         if (window.history && window.history.replaceState) {
@@ -1999,7 +2019,7 @@ function handleOAuthRedirectHash() {
         }
       }
     })
-    .catch(err => console.warn("Google OAuth token fetch error:", err));
+    .catch(err => console.warn("OAuth token fetch error:", err));
   } catch (err) {
     console.error("OAuth redirect parse error:", err);
   }
@@ -2372,14 +2392,19 @@ function dispatchVerificationEmail(email, code, name = "Trader") {
   // 2. Also invoke Supabase auth signInWithOtp if initialized
   try {
     if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.signInWithOtp === "function") {
+      const redirectUrl = (typeof window !== "undefined" && window.location && window.location.origin) 
+        ? window.location.origin 
+        : "https://triannosaraus.vercel.app";
+
       supabaseClient.auth.signInWithOtp({
         email: email,
         options: {
-          shouldCreateUser: true
+          shouldCreateUser: true,
+          emailRedirectTo: redirectUrl
         }
       }).then(({ data, error }) => {
         if (error) console.log("[Supabase Auth] Note on signInWithOtp:", error.message);
-        else console.log("[Supabase Auth] OTP triggered via Supabase cloud mailer");
+        else console.log("[Supabase Auth] OTP triggered via Supabase cloud mailer with redirect to:", redirectUrl);
       }).catch(err => {
         console.warn("[Supabase Auth] Delivery note:", err);
       });
