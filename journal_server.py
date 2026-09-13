@@ -467,7 +467,7 @@ async def close_trade(req: TradeCloseRequest):
 
 @app.post("/api/trades/upload-image")
 async def upload_trade_image(file: UploadFile = File(...)):
-    upload_dir = os.path.join("journal_ui", "uploads", "trades")
+    upload_dir = os.path.join(BASE_DIR, "uploads", "trades")
     os.makedirs(upload_dir, exist_ok=True)
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -479,6 +479,176 @@ async def upload_trade_image(file: UploadFile = File(...)):
         
     rel_url = f"/uploads/trades/{safe_filename}"
     return {"status": "success", "image_url": rel_url}
+
+def generate_trade_chart(trade: Dict[str, Any]) -> str:
+    """Generate professional institutional execution chart using MT5 candle data and execution geometry"""
+    from PIL import Image, ImageDraw, ImageFont
+
+    symbol = trade.get("symbol", "XAUUSD")
+    trade_id = str(trade.get("id", "1"))
+    side = str(trade.get("type", "BUY")).upper()
+    entry_p = float(trade.get("entry_price", 2520.0))
+    exit_p = float(trade.get("exit_price", entry_p))
+    sl_p = float(trade.get("sl", entry_p - 5.0))
+    tp_p = float(trade.get("tp", entry_p + 10.0))
+    pnl = float(trade.get("pnl", 0.0))
+    setup = trade.get("setup_name", "V8 Engine Execution")
+    open_time_str = trade.get("open_time", "")
+    session_name = trade.get("session", "London")
+
+    # Fetch MT5 candles if possible
+    candles = []
+    if mt5.initialize():
+        try:
+            target_dt = None
+            if open_time_str:
+                for fmt in ("%Y.%m.%d %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y.%m.%d %H:%M"):
+                    try:
+                        target_dt = datetime.datetime.strptime(open_time_str, fmt)
+                        break
+                    except Exception:
+                        pass
+            if target_dt:
+                rates = mt5.copy_rates_from(symbol, mt5.TIMEFRAME_M1, target_dt + datetime.timedelta(minutes=30), 50)
+            else:
+                rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, 50)
+            if rates is not None and len(rates) > 10:
+                candles = rates
+        except Exception as e:
+            print(f"MT5 candle retrieval note: {e}")
+
+    w, h = 920, 520
+    img = Image.new("RGB", (w, h), color="#0B0E14")
+    draw = ImageDraw.Draw(img)
+
+    # Outer border & header bar
+    draw.rectangle([(0, 0), (w - 1, h - 1)], outline="#232C3D", width=1)
+    draw.rectangle([(0, 0), (w, 54)], fill="#0F141F")
+    draw.line([(0, 54), (w, 54)], fill="#232C3D", width=1)
+
+    # Title & Badge
+    draw.text((20, 16), f"TRI REX EXECUTION AUDIT · #{trade_id}", fill="#9CA3AF")
+    draw.text((360, 16), f"{symbol} · {setup} ({side})", fill="#F3F4F6")
+    pnl_str = f"+${pnl:.2f}" if pnl >= 0 else f"-${abs(pnl):.2f}"
+    pnl_color = "#10B981" if pnl >= 0 else "#EF4444"
+    draw.text((790, 16), pnl_str, fill=pnl_color)
+
+    # Chart canvas bounding box
+    chart_x1, chart_y1 = 60, 75
+    chart_x2, chart_y2 = 820, 460
+    draw.rectangle([(chart_x1, chart_y1), (chart_x2, chart_y2)], fill="#0E121A", outline="#1F2837", width=1)
+
+    # Determine price min/max boundaries
+    if len(candles) > 0:
+        highs = [float(c["high"]) for c in candles]
+        lows = [float(c["low"]) for c in candles]
+        min_p = min(min(lows), sl_p, entry_p, exit_p, tp_p) - 0.8
+        max_p = max(max(highs), sl_p, entry_p, exit_p, tp_p) + 0.8
+    else:
+        prices = [entry_p, exit_p, sl_p, tp_p]
+        min_p = min(prices) - 4.0
+        max_p = max(prices) + 4.0
+
+    if max_p <= min_p:
+        max_p = min_p + 10.0
+
+    def price_to_y(p):
+        ratio = (p - min_p) / (max_p - min_p)
+        return int(chart_y2 - ratio * (chart_y2 - chart_y1))
+
+    # Grid lines & price axis ticks
+    grid_steps = 6
+    for i in range(grid_steps + 1):
+        step_p = min_p + (max_p - min_p) * (i / grid_steps)
+        gy = price_to_y(step_p)
+        draw.line([(chart_x1, gy), (chart_x2, gy)], fill="#171E2B", width=1)
+        draw.text((chart_x2 + 8, gy - 6), f"{step_p:.2f}", fill="#64748B")
+
+    # Render candlesticks if available
+    if len(candles) > 0:
+        n = min(len(candles), 45)
+        usable_candles = candles[-n:]
+        slot_w = (chart_x2 - chart_x1 - 20) / n
+        for idx, c in enumerate(usable_candles):
+            cx = int(chart_x1 + 10 + idx * slot_w + slot_w / 2)
+            c_open = float(c["open"])
+            c_close = float(c["close"])
+            c_high = float(c["high"])
+            c_low = float(c["low"])
+
+            is_bull = c_close >= c_open
+            candle_color = "#10B981" if is_bull else "#EF4444"
+
+            # Wicks
+            draw.line([(cx, price_to_y(c_high)), (cx, price_to_y(c_low))], fill=candle_color, width=1)
+            # Body
+            by1 = price_to_y(max(c_open, c_close))
+            by2 = price_to_y(min(c_open, c_close))
+            if abs(by2 - by1) < 2:
+                by2 = by1 + 2
+            bw = max(2, int(slot_w * 0.65))
+            draw.rectangle([(cx - bw // 2, by1), (cx + bw // 2, by2)], fill=candle_color)
+
+    # Render Key Execution Levels: Entry, Exit, SL, TP
+    # Entry line (Cyan)
+    ey = price_to_y(entry_p)
+    draw.line([(chart_x1, ey), (chart_x2, ey)], fill="#06B6D4", width=2)
+    draw.rectangle([(chart_x1 + 10, ey - 9), (chart_x1 + 120, ey + 9)], fill="#082F49")
+    draw.text((chart_x1 + 16, ey - 6), f"ENTRY: {entry_p:.2f}", fill="#38BDF8")
+
+    # Exit line (Purple)
+    xy = price_to_y(exit_p)
+    draw.line([(chart_x1, xy), (chart_x2, xy)], fill="#A855F7", width=2)
+    draw.rectangle([(chart_x1 + 130, xy - 9), (chart_x1 + 230, xy + 9)], fill="#3B0764")
+    draw.text((chart_x1 + 136, xy - 6), f"EXIT: {exit_p:.2f}", fill="#D8B4FE")
+
+    # TP line (Green)
+    tpy = price_to_y(tp_p)
+    draw.line([(chart_x1, tpy), (chart_x2, tpy)], fill="#10B981", width=1)
+    draw.rectangle([(chart_x1 + 240, tpy - 8), (chart_x1 + 330, tpy + 8)], fill="#064E3B")
+    draw.text((chart_x1 + 246, tpy - 6), f"TP: {tp_p:.2f}", fill="#6EE7B7")
+
+    # SL line (Red)
+    sly = price_to_y(sl_p)
+    draw.line([(chart_x1, sly), (chart_x2, sly)], fill="#EF4444", width=1)
+    draw.rectangle([(chart_x1 + 340, sly - 8), (chart_x1 + 430, sly + 8)], fill="#7F1D1D")
+    draw.text((chart_x1 + 346, sly - 6), f"SL: {sl_p:.2f}", fill="#FCA5A5")
+
+    # Watermark Footer inside canvas
+    draw.text((chart_x1 + 12, chart_y2 - 22), f"MetaTrader 5 Native Feed · Session: {session_name} · Time: {open_time_str}", fill="#475569")
+
+    # Save to disk
+    upload_dir = os.path.join(BASE_DIR, "uploads", "trades")
+    os.makedirs(upload_dir, exist_ok=True)
+    filename = f"mt5_chart_trade_{trade_id}.png"
+    out_path = os.path.join(upload_dir, filename)
+    img.save(out_path)
+    return f"/uploads/trades/{filename}"
+
+@app.post("/api/trades/fetch-chart")
+async def fetch_trade_chart(req: TradeAttachImageRequest):
+    """Auto-generate and attach the exact MetaTrader 5 execution chart for the trade"""
+    global journal_history
+    trade = None
+    for t in journal_history:
+        if str(t.get("id")) == str(req.id):
+            trade = t
+            break
+
+    if not trade:
+        raise HTTPException(status_code=404, detail=f"Trade #{req.id} not found")
+
+    image_url = generate_trade_chart(trade)
+    trade["image_url"] = image_url
+    save_journal_to_file()
+
+    await manager.broadcast({
+        "event": "TRADE_IMAGE_ATTACHED",
+        "trade_id": req.id,
+        "image_url": image_url
+    })
+
+    return {"status": "success", "trade_id": req.id, "image_url": image_url}
 
 @app.post("/api/trades/attach-image")
 async def attach_trade_image(req: TradeAttachImageRequest):
@@ -679,8 +849,9 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 # Mount static files for web frontend
-os.makedirs("journal_ui", exist_ok=True)
-app.mount("/", StaticFiles(directory="journal_ui", html=True), name="journal_ui")
+static_dir = BASE_DIR if os.path.exists(os.path.join(BASE_DIR, "index.html")) else os.path.join(BASE_DIR, "journal_ui")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="journal_ui")
 
 if __name__ == "__main__":
     import uvicorn

@@ -1099,6 +1099,13 @@ function openChartModal(tradeId) {
   if (titleEl) titleEl.textContent = `${t.symbol} · ${t.setup_name} (${t.type})`;
   if (subEl) subEl.textContent = `${t.date} ${t.open_time} · ${t.session} Session · ${t.outcome} (${pnlStr})`;
 
+  // Setup TradingView link
+  const tvLinkBtn = document.getElementById("btn-tv-chart-link");
+  if (tvLinkBtn) {
+    const cleanSym = (t.symbol || "XAUUSD").replace("/", "");
+    tvLinkBtn.href = `https://www.tradingview.com/chart/?symbol=${cleanSym}`;
+  }
+
   // Display Image or Placeholder
   if (imgWrap) {
     if (t.image_url) {
@@ -1109,10 +1116,15 @@ function openChartModal(tradeId) {
         <div class="chart-placeholder-box">
           <span class="chart-placeholder-icon">📈</span>
           <h4 style="color: var(--text-primary); margin-bottom: 0.35rem;">No Execution Chart Attached</h4>
-          <p style="margin-bottom: 1.25rem;">Upload a screenshot of your M1/M5 chart, entry trigger, or level reaction.</p>
-          <label class="btn-primary" for="trade-chart-file-input" style="cursor: pointer;">
-            📷 Choose Screenshot Image
-          </label>
+          <p style="margin-bottom: 1.25rem;">Fetch the exact setup chart from MetaTrader 5 or upload a screenshot.</p>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
+            <button class="btn-primary" onclick="fetchMT5ChartForActiveTrade()" style="cursor: pointer; background: linear-gradient(135deg, #0284C7, #0369A1);">
+              ⚡ Fetch MT5 Setup Chart
+            </button>
+            <label class="btn-primary" for="trade-chart-file-input" style="cursor: pointer;">
+              📷 Upload Screenshot
+            </label>
+          </div>
         </div>
       `;
     }
@@ -1169,6 +1181,56 @@ function closeChartModal(event) {
   activeModalTradeId = null;
 }
 window.closeChartModal = closeChartModal;
+
+// Auto-fetch MT5 Execution Chart for the active trade
+async function fetchMT5ChartForActiveTrade() {
+  if (!activeModalTradeId) return;
+
+  const btn = document.getElementById("btn-fetch-mt5-chart");
+  const origText = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Rendering MT5 Chart...";
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/trades/fetch-chart`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: String(activeModalTradeId),
+        image_url: ""
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      alert(`Could not generate MT5 chart: ${errData.detail || res.statusText}`);
+      return;
+    }
+
+    const data = await res.json();
+    const trade = (journalData.trades || []).find(t => String(t.id) === String(activeModalTradeId));
+    if (trade) {
+      trade.image_url = data.image_url;
+    }
+
+    openChartModal(activeModalTradeId);
+    applyMultiFilters();
+    if (calSelectedDate) {
+      inspectDayDetail(calSelectedDate);
+    }
+  } catch (err) {
+    console.error("Error fetching MT5 chart:", err);
+    alert("Chart generation error: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+  }
+}
+window.fetchMT5ChartForActiveTrade = fetchMT5ChartForActiveTrade;
 
 async function handleChartFileUpload(event) {
   const file = event.target.files && event.target.files[0];

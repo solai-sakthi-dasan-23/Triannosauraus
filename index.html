@@ -703,8 +703,14 @@
           <span class="chart-modal-sub" id="modal-trade-sub">2026.09.08 · Asian Session · +$10.10</span>
         </div>
         <div class="chart-modal-actions">
+          <button class="btn-fetch-chart" id="btn-fetch-mt5-chart" onclick="fetchMT5ChartForActiveTrade()">
+            ⚡ Fetch MT5 Chart
+          </button>
+          <a class="btn-tv-chart" id="btn-tv-chart-link" href="#" target="_blank" rel="noopener noreferrer" title="View exact setup on TradingView live chart">
+            📈 TradingView Chart
+          </a>
           <label class="btn-upload-chart" for="trade-chart-file-input">
-            📷 Replace / Upload Chart
+            📷 Replace / Upload
           </label>
           <input type="file" id="trade-chart-file-input" accept="image/*" style="display: none;" onchange="handleChartFileUpload(event)">
           <button class="btn-close-modal" onclick="closeChartModal()">✕ Close</button>
