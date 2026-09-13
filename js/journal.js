@@ -1902,30 +1902,16 @@ function checkAuthSession() {
           tier: "APEX INSTITUTIONAL",
           avatar: initials
         };
+        localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pending));
       }
-
-      const verifiedUser = {
-        name: pending.name,
-        email: pending.email,
-        password: pending.password || "",
-        mt5_login: pending.mt5_login || "",
-        account_id: pending.account_id || ("TR-" + Math.floor(10000000 + Math.random() * 90000000)),
-        tier: "APEX INSTITUTIONAL",
-        avatar: pending.avatar || "TR",
-        verified: true,
-        registeredAt: new Date().toISOString()
-      };
-
-      saveRegisteredUser(verifiedUser);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(verifiedUser));
-      localStorage.removeItem(PENDING_VERIFICATION_KEY);
 
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, null, window.location.pathname);
       }
 
-      applyAuthenticatedUserUI(verifiedUser);
-      showAuthToast(`✅ Email link verified! Welcome to Tri Rex Terminal, ${verifiedUser.name}.`);
+      lockToAuthScreen();
+      showSetPasswordScreen(verifyEmail);
+      showAuthToast(`✅ Email link confirmed! Please create your password.`);
       return;
     }
 
@@ -1962,48 +1948,8 @@ function handleEmailVerificationLinkClick() {
     return;
   }
   const pending = JSON.parse(pendingRaw);
-  showAuthToast("📬 Simulating email link click... Launching dashboard!");
-
-  setTimeout(() => {
-    const verifiedUser = {
-      name: pending.name,
-      email: pending.email,
-      password: pending.password,
-      mt5_login: pending.mt5_login,
-      account_id: pending.account_id,
-      tier: "APEX INSTITUTIONAL",
-      avatar: pending.avatar,
-      verified: true,
-      registeredAt: new Date().toISOString()
-    };
-
-    saveRegisteredUser(verifiedUser);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(verifiedUser));
-    localStorage.removeItem(PENDING_VERIFICATION_KEY);
-
-    if (pending.mt5_login) {
-      const accounts = getLinkedAccounts();
-      if (!accounts.some(a => String(a.id) === String(pending.mt5_login))) {
-        accounts.push({
-          id: String(pending.mt5_login),
-          name: `${pending.name} MT5`,
-          server: "CPTMarkets-Live",
-          company: "CPT Markets (Pty) Ltd",
-          type: "Live Apex",
-          balance: 0.0,
-          equity: 0.0,
-          leverage: 1000,
-          status: "CONNECTED"
-        });
-        saveLinkedAccounts(accounts);
-        renderAccountSwitcherUI();
-      }
-    }
-
-    applyAuthenticatedUserUI(verifiedUser);
-    closeAuthModal();
-    showAuthToast(`🎉 Verified via Email link! Welcome, ${verifiedUser.name}.`);
-  }, 400);
+  showAuthToast("📬 Email link verified! Please create your password.");
+  showSetPasswordScreen(pending.email);
 }
 window.handleEmailVerificationLinkClick = handleEmailVerificationLinkClick;
 
@@ -2134,8 +2080,10 @@ function switchAuthTab(tabName) {
   const signinForm = document.getElementById("auth-signin-form");
   const signupForm = document.getElementById("auth-signup-form");
   const verifyView = document.getElementById("auth-verify-view");
+  const setPwView = document.getElementById("auth-set-password-view");
 
   if (verifyView) verifyView.style.display = "none";
+  if (setPwView) setPwView.style.display = "none";
 
   if (tabName === 'signin') {
     if (signinBtn) signinBtn.classList.add("active");
@@ -2269,27 +2217,41 @@ function handleGoogleSSOSubmit(event) {
     return;
   }
 
+  // If user already registered, direct them to Sign In with their password
+  const users = getRegisteredUsers();
+  const existing = users[email.toLowerCase()];
+  if (existing && existing.password) {
+    closeGoogleSSOModal();
+    switchAuthTab('signin');
+    const signinEmail = document.getElementById("signin-email");
+    if (signinEmail) signinEmail.value = email;
+    showAuthToast(`👋 Account already registered for ${email}. Please sign in with your password.`);
+    return;
+  }
+
   const finalName = name || email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   const initials = finalName.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() || "G";
 
-  const googleUser = {
+  // Generate secure 6-digit confirmation code
+  currentVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  const pendingUser = {
     name: finalName,
     email: email,
     auth_provider: "google",
     tier: "VERIFIED CUSTOMER",
     account_id: "TR-" + Math.floor(10000000 + Math.random() * 90000000),
     avatar: initials,
-    verified: true,
-    registeredAt: new Date().toISOString()
+    registeredAt: new Date().toISOString(),
+    code: currentVerificationCode
   };
 
-  saveRegisteredUser(googleUser);
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(googleUser));
-
+  localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingUser));
   closeGoogleSSOModal();
-  applyAuthenticatedUserUI(googleUser);
-  closeAuthModal();
-  showAuthToast(`⚡ Google Sign-In Complete! Welcome, ${googleUser.name}.`);
+
+  // Route directly to OTP verification view
+  showVerificationScreen(email, currentVerificationCode);
+  showAuthToast(`✉️ Verification code sent to Google email: ${email}`);
 }
 window.handleGoogleSSOSubmit = handleGoogleSSOSubmit;
 
@@ -2323,7 +2285,7 @@ function handleAuthSignIn(event) {
     showAuthToast(`⚡ Welcome back, ${existing.name}! Terminal connected.`);
   } else {
     // If user signs in for first time with password, prompt them to register
-    alert("No existing account found with this email. Please switch to Create Account or Continue with Google.");
+    alert("No existing account found with this email. Please sign up or continue with Google first.");
     switchAuthTab('signup');
     const signupEmail = document.getElementById("signup-email");
     if (signupEmail) signupEmail.value = email;
@@ -2340,15 +2302,24 @@ function handleAuthSignUp(event) {
   const nameInput = document.getElementById("signup-name");
   const emailInput = document.getElementById("signup-email");
   const mt5Input = document.getElementById("signup-mt5");
-  const pwInput = document.getElementById("signup-password");
 
   const name = (nameInput ? nameInput.value : "").trim();
   const email = (emailInput ? emailInput.value : "").trim();
   const mt5Acc = (mt5Input ? mt5Input.value : "").trim();
-  const password = (pwInput ? pwInput.value : "").trim();
 
-  if (!name || !email || !password) {
-    alert("Please complete all required fields.");
+  if (!name || !email) {
+    alert("Please enter your name and email address.");
+    return;
+  }
+
+  // Check if account already exists with password
+  const users = getRegisteredUsers();
+  const existing = users[email.toLowerCase()];
+  if (existing && existing.password) {
+    switchAuthTab('signin');
+    const signinEmail = document.getElementById("signin-email");
+    if (signinEmail) signinEmail.value = email;
+    showAuthToast(`👋 Account already registered for ${email}. Please enter your password to sign in.`);
     return;
   }
 
@@ -2359,7 +2330,7 @@ function handleAuthSignUp(event) {
   const pendingUser = {
     name: name,
     email: email,
-    password: password,
+    password: "",
     mt5_login: mt5Acc || "",
     account_id: mt5Acc ? `TR-${mt5Acc}` : "TR-" + Math.floor(10000000 + Math.random() * 90000000),
     tier: "APEX INSTITUTIONAL",
@@ -2370,15 +2341,6 @@ function handleAuthSignUp(event) {
 
   localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingUser));
 
-  // Also attempt sending OTP via Supabase Auth if cloud enabled
-  if (supabaseClient && supabaseClient.auth) {
-    supabaseClient.auth.signUp({
-      email: email,
-      password: password,
-      options: { data: { full_name: name, mt5_login: mt5Acc } }
-    }).catch(err => console.warn("Supabase email dispatch note:", err));
-  }
-
   // Switch to the 6-digit verification screen
   showVerificationScreen(email, currentVerificationCode);
 }
@@ -2388,11 +2350,13 @@ function showVerificationScreen(email, code) {
   const signinForm = document.getElementById("auth-signin-form");
   const signupForm = document.getElementById("auth-signup-form");
   const verifyView = document.getElementById("auth-verify-view");
+  const setPwView = document.getElementById("auth-set-password-view");
   const targetEmail = document.getElementById("verify-target-email");
   const helperMsg = document.getElementById("verify-helper-msg");
 
   if (signinForm) signinForm.classList.remove("active");
   if (signupForm) signupForm.classList.remove("active");
+  if (setPwView) setPwView.style.display = "none";
   if (verifyView) {
     verifyView.style.display = "flex";
     verifyView.classList.add("active");
@@ -2414,6 +2378,141 @@ function showVerificationScreen(email, code) {
   startVerificationCountdown(45);
   showAuthToast(`✉️ Verification code sent to ${email}`);
 }
+
+function showSetPasswordScreen(email) {
+  const signinForm = document.getElementById("auth-signin-form");
+  const signupForm = document.getElementById("auth-signup-form");
+  const verifyView = document.getElementById("auth-verify-view");
+  const setPwView = document.getElementById("auth-set-password-view");
+  const targetEmail = document.getElementById("set-pw-target-email");
+
+  if (signinForm) signinForm.classList.remove("active");
+  if (signupForm) signupForm.classList.remove("active");
+  if (verifyView) verifyView.style.display = "none";
+  if (setPwView) {
+    setPwView.style.display = "flex";
+    setPwView.classList.add("active");
+  }
+
+  if (targetEmail) targetEmail.textContent = email;
+
+  const pwInput = document.getElementById("set-master-password");
+  const confirmInput = document.getElementById("confirm-master-password");
+  if (pwInput) {
+    pwInput.value = "";
+    pwInput.focus();
+  }
+  if (confirmInput) confirmInput.value = "";
+}
+window.showSetPasswordScreen = showSetPasswordScreen;
+
+function evaluateSetPasswordStrength(val) {
+  const seg1 = document.getElementById("set-pw-seg-1");
+  const seg2 = document.getElementById("set-pw-seg-2");
+  const seg3 = document.getElementById("set-pw-seg-3");
+  const seg4 = document.getElementById("set-pw-seg-4");
+  const text = document.getElementById("set-pw-strength-text");
+
+  [seg1, seg2, seg3, seg4].forEach(s => { if (s) s.className = "pw-segment"; });
+
+  if (!val || val.length === 0) {
+    if (text) { text.textContent = "Enter password"; text.style.color = "var(--text-muted)"; }
+    return 0;
+  }
+
+  let score = 0;
+  if (val.length >= 6) score++;
+  if (val.length >= 8) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val) || /[A-Z]/.test(val)) score++;
+
+  if (score === 1) {
+    if (seg1) seg1.classList.add("weak");
+    if (text) { text.textContent = "Weak (Needs 8+ chars)"; text.style.color = "var(--red)"; }
+  } else if (score === 2) {
+    if (seg1) seg1.classList.add("medium");
+    if (seg2) seg2.classList.add("medium");
+    if (text) { text.textContent = "Medium"; text.style.color = "var(--gold)"; }
+  } else if (score === 3) {
+    if (seg1) seg1.classList.add("strong");
+    if (seg2) seg2.classList.add("strong");
+    if (seg3) seg3.classList.add("strong");
+    if (text) { text.textContent = "Strong"; text.style.color = "var(--cyan)"; }
+  } else if (score >= 4) {
+    if (seg1) seg1.classList.add("apex");
+    if (seg2) seg2.classList.add("apex");
+    if (seg3) seg3.classList.add("apex");
+    if (seg4) seg4.classList.add("apex");
+    if (text) { text.textContent = "Apex Security (Verified)"; text.style.color = "var(--green)"; }
+  }
+  return score;
+}
+window.evaluateSetPasswordStrength = evaluateSetPasswordStrength;
+
+function handleSetPasswordSubmit(event) {
+  event.preventDefault();
+  const pwInput = document.getElementById("set-master-password");
+  const confirmInput = document.getElementById("confirm-master-password");
+  const hintEl = document.getElementById("pw-match-hint");
+
+  const pw = (pwInput ? pwInput.value : "").trim();
+  const confirm = (confirmInput ? confirmInput.value : "").trim();
+
+  if (!pw || pw.length < 6) {
+    alert("Password must be at least 6 characters with numbers.");
+    if (pwInput) pwInput.focus();
+    return;
+  }
+
+  if (pw !== confirm) {
+    if (hintEl) {
+      hintEl.textContent = "❌ Passwords do not match! Please verify.";
+      hintEl.style.color = "var(--red)";
+    }
+    alert("Passwords do not match. Please ensure both passwords match.");
+    if (confirmInput) confirmInput.focus();
+    return;
+  }
+
+  const pendingRaw = localStorage.getItem(PENDING_VERIFICATION_KEY);
+  if (!pendingRaw) {
+    alert("Session expired. Please restart registration.");
+    switchAuthTab('signup');
+    return;
+  }
+
+  const pending = JSON.parse(pendingRaw);
+
+  // Complete official user registration with confirmed password
+  const verifiedUser = {
+    name: pending.name,
+    email: pending.email,
+    password: pw, // Actual password saved
+    auth_provider: pending.auth_provider || "email",
+    mt5_login: pending.mt5_login || "",
+    account_id: pending.account_id || ("TR-" + Math.floor(10000000 + Math.random() * 90000000)),
+    tier: "APEX INSTITUTIONAL",
+    avatar: pending.avatar || "TR",
+    verified: true,
+    registeredAt: new Date().toISOString()
+  };
+
+  saveRegisteredUser(verifiedUser);
+  localStorage.removeItem(PENDING_VERIFICATION_KEY);
+
+  // Navigate to login page
+  switchAuthTab('signin');
+  const signinEmail = document.getElementById("signin-email");
+  const signinPw = document.getElementById("signin-password");
+  if (signinEmail) signinEmail.value = verifiedUser.email;
+  if (signinPw) {
+    signinPw.value = "";
+    signinPw.focus();
+  }
+
+  showAuthToast(`🎉 Registration complete! Please enter your password to sign in.`);
+}
+window.handleSetPasswordSubmit = handleSetPasswordSubmit;
 
 function setupDigitInputHandlers() {
   const digits = [1, 2, 3, 4, 5, 6].map(i => document.getElementById(`v-digit-${i}`));
@@ -2521,46 +2620,9 @@ function handleVerifyCodeSubmit(event) {
   const pending = JSON.parse(pendingRaw);
 
   if (digits === pending.code || digits === currentVerificationCode) {
-    // Verification passed! Activate verified account
-    const verifiedUser = {
-      name: pending.name,
-      email: pending.email,
-      password: pending.password,
-      mt5_login: pending.mt5_login,
-      account_id: pending.account_id,
-      tier: "APEX INSTITUTIONAL",
-      avatar: pending.avatar,
-      verified: true,
-      registeredAt: new Date().toISOString()
-    };
-
-    saveRegisteredUser(verifiedUser);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(verifiedUser));
-    localStorage.removeItem(PENDING_VERIFICATION_KEY);
-
-    // If MT5 account specified during registration, auto-link it
-    if (pending.mt5_login) {
-      const accounts = getLinkedAccounts();
-      if (!accounts.some(a => String(a.id) === String(pending.mt5_login))) {
-        accounts.push({
-          id: String(pending.mt5_login),
-          name: `${pending.name} MT5`,
-          server: "CPTMarkets-Live",
-          company: "CPT Markets (Pty) Ltd",
-          type: "Live Apex",
-          balance: 0.0,
-          equity: 0.0,
-          leverage: 1000,
-          status: "CONNECTED"
-        });
-        saveLinkedAccounts(accounts);
-        renderAccountSwitcherUI();
-      }
-    }
-
-    applyAuthenticatedUserUI(verifiedUser);
-    closeAuthModal();
-    showAuthToast(`🎉 Email verified! Welcome to Tri Rex Terminal, ${verifiedUser.name}.`);
+    // OTP Matched! Now navigate to Set & Confirm Password Screen
+    showSetPasswordScreen(pending.email);
+    showAuthToast(`✅ OTP verified! Please create your password.`);
   } else {
     alert("Incorrect verification code. Please check and re-enter, or click Resend Code.");
   }

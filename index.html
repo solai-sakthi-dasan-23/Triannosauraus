@@ -894,40 +894,14 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="signup-password">Master Password</label>
-            <div class="input-with-icon">
-              <span class="input-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-              </span>
-              <input type="password" id="signup-password" class="auth-input" placeholder="Min. 8 characters with numbers" required oninput="evaluatePasswordStrength(this.value)">
-              <button type="button" class="input-toggle-pw" onclick="togglePasswordVisibility('signup-password')" title="Toggle Password">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              </button>
-            </div>
-            
-            <div class="pw-strength-container" id="pw-strength-wrap">
-              <div class="pw-strength-bar">
-                <div class="pw-segment" id="pw-seg-1"></div>
-                <div class="pw-segment" id="pw-seg-2"></div>
-                <div class="pw-segment" id="pw-seg-3"></div>
-                <div class="pw-segment" id="pw-seg-4"></div>
-              </div>
-              <div class="pw-strength-label">
-                <span>Password Strength</span>
-                <strong id="pw-strength-text" style="color: var(--text-muted);">Enter password</strong>
-              </div>
-            </div>
-          </div>
-
           <div class="form-checkbox-row">
             <input type="checkbox" id="signup-terms" required checked>
             <label for="signup-terms">I agree to Tri Rex Quantitative Risk Guidelines & Privacy Policy</label>
           </div>
 
           <button type="submit" class="btn-auth-submit" id="btn-signup-submit">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            Continue to Verification
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Send Verification Code to Email
           </button>
         </form>
 
@@ -983,6 +957,67 @@
                 Change Email
               </button>
             </div>
+          </form>
+        </div>
+
+        <!-- ── SET & CONFIRM PASSWORD VIEW (AFTER OTP VERIFICATION) ── -->
+        <div class="auth-view" id="auth-set-password-view" style="display: none;">
+          <div class="verify-header">
+            <div class="verify-icon-bubble" style="background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); color: var(--green); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h3 class="verify-title">CREATE YOUR PASSWORD</h3>
+            <p class="verify-subtitle">
+              Email verified! Set a master password to finalize your registration for <br>
+              <strong id="set-pw-target-email" class="text-cyan">trader@domain.com</strong>
+            </p>
+          </div>
+
+          <form id="auth-set-password-form" onsubmit="handleSetPasswordSubmit(event)">
+            <div class="form-group">
+              <label class="form-label" for="set-master-password">Master Password</label>
+              <div class="input-with-icon">
+                <span class="input-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </span>
+                <input type="password" id="set-master-password" class="auth-input" placeholder="Min. 8 characters with numbers" required oninput="evaluateSetPasswordStrength(this.value)">
+                <button type="button" class="input-toggle-pw" onclick="togglePasswordVisibility('set-master-password')" title="Toggle Password">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+              </div>
+
+              <div class="pw-strength-container">
+                <div class="pw-strength-bar">
+                  <div class="pw-segment" id="set-pw-seg-1"></div>
+                  <div class="pw-segment" id="set-pw-seg-2"></div>
+                  <div class="pw-segment" id="set-pw-seg-3"></div>
+                  <div class="pw-segment" id="set-pw-seg-4"></div>
+                </div>
+                <div class="pw-strength-label">
+                  <span>Password Strength</span>
+                  <strong id="set-pw-strength-text" style="color: var(--text-muted);">Enter password</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="confirm-master-password">Confirm Password</label>
+              <div class="input-with-icon">
+                <span class="input-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </span>
+                <input type="password" id="confirm-master-password" class="auth-input" placeholder="Re-enter master password" required>
+                <button type="button" class="input-toggle-pw" onclick="togglePasswordVisibility('confirm-master-password')" title="Toggle Password">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </button>
+              </div>
+              <small id="pw-match-hint" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Passwords must match.</small>
+            </div>
+
+            <button type="submit" class="btn-auth-submit" id="btn-save-password">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Complete Registration & Proceed to Login
+            </button>
           </form>
         </div>
 
@@ -1051,8 +1086,8 @@
           </div>
 
           <button type="submit" class="btn-auth-submit" style="margin-top: 1rem; background: linear-gradient(135deg, #4285F4 0%, #2563EB 100%);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            Continue to Terminal
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Send Verification Code to Email
           </button>
         </form>
       </div>
