@@ -1101,33 +1101,9 @@ function openChartModal(tradeId) {
 
   // Setup TradingView link
   const tvLinkBtn = document.getElementById("btn-tv-chart-link");
+  const cleanSym = (t.symbol || "XAUUSD").replace("/", "");
   if (tvLinkBtn) {
-    const cleanSym = (t.symbol || "XAUUSD").replace("/", "");
     tvLinkBtn.href = `https://www.tradingview.com/chart/?symbol=${cleanSym}`;
-  }
-
-  // Display Image or Placeholder
-  if (imgWrap) {
-    if (t.image_url) {
-      const fullUrl = t.image_url.startsWith("http") ? t.image_url : `${API_BASE}${t.image_url}`;
-      imgWrap.innerHTML = `<img id="modal-chart-img" src="${fullUrl}" alt="Trade #${t.id} Chart" class="chart-modal-img" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'chart-placeholder-box\\'><span class=\\'chart-placeholder-icon\\'>⚠️</span><p>Image not reachable at ${fullUrl}</p></div>';">`;
-    } else {
-      imgWrap.innerHTML = `
-        <div class="chart-placeholder-box">
-          <span class="chart-placeholder-icon">📈</span>
-          <h4 style="color: var(--text-primary); margin-bottom: 0.35rem;">No Execution Chart Attached</h4>
-          <p style="margin-bottom: 1.25rem;">Fetch the exact setup chart from MetaTrader 5 or upload a screenshot.</p>
-          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
-            <button class="btn-primary" onclick="fetchMT5ChartForActiveTrade()" style="cursor: pointer; background: linear-gradient(135deg, #0284C7, #0369A1);">
-              ⚡ Fetch MT5 Setup Chart
-            </button>
-            <label class="btn-primary" for="trade-chart-file-input" style="cursor: pointer;">
-              📷 Upload Screenshot
-            </label>
-          </div>
-        </div>
-      `;
-    }
   }
 
   // Populate Key Trade Execution Metrics
@@ -1168,9 +1144,135 @@ function openChartModal(tradeId) {
     `;
   }
 
+  // Configure MT5 Screenshot Image view
+  if (imgWrap) {
+    if (t.image_url) {
+      const fullUrl = t.image_url.startsWith("http") ? t.image_url : `${API_BASE}${t.image_url}`;
+      imgWrap.innerHTML = `<img id="modal-chart-img" src="${fullUrl}" alt="Trade #${t.id} Chart" class="chart-modal-img" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'chart-placeholder-box\\'><span class=\\'chart-placeholder-icon\\'>⚠️</span><p>Image not reachable at ${fullUrl}</p></div>';">`;
+    } else {
+      imgWrap.innerHTML = `
+        <div class="chart-placeholder-box">
+          <span class="chart-placeholder-icon">📈</span>
+          <h4 style="color: var(--text-primary); margin-bottom: 0.35rem;">No MT5 Execution Screenshot Attached</h4>
+          <p style="margin-bottom: 1.25rem;">Fetch the exact setup chart from MetaTrader 5 or upload a screenshot.</p>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
+            <button class="btn-primary" onclick="fetchMT5ChartForActiveTrade()" style="cursor: pointer; background: linear-gradient(135deg, #0284C7, #0369A1);">
+              ⚡ Fetch MT5 Setup Chart
+            </button>
+            <label class="btn-primary" for="trade-chart-file-input" style="cursor: pointer;">
+              📷 Upload Screenshot
+            </label>
+          </div>
+        </div>
+      `;
+    }
+  }
+
   overlay.style.display = "flex";
+
+  // By default, activate TradingView Interactive View
+  switchChartView("tv");
+  loadTradingViewWidgetForTrade(t);
 }
 window.openChartModal = openChartModal;
+
+// Switch between TradingView interactive view & MT5 screenshot view
+function switchChartView(mode) {
+  const tvContainer = document.getElementById("tv-widget-container");
+  const mt5Container = document.getElementById("chart-modal-img-wrap");
+  const btnTv = document.getElementById("btn-view-tv");
+  const btnMt5 = document.getElementById("btn-view-mt5");
+  const fetchMt5Btn = document.getElementById("btn-fetch-mt5-chart");
+  const uploadLabel = document.getElementById("btn-upload-chart-label");
+
+  if (mode === "tv") {
+    if (tvContainer) tvContainer.style.display = "block";
+    if (mt5Container) mt5Container.style.display = "none";
+    if (btnTv) btnTv.classList.add("active");
+    if (btnMt5) btnMt5.classList.remove("active");
+    if (fetchMt5Btn) fetchMt5Btn.style.display = "none";
+    if (uploadLabel) uploadLabel.style.display = "none";
+
+    // Re-render widget if canvas is empty
+    if (activeModalTradeId) {
+      const trade = (journalData.trades || []).find(t => String(t.id) === String(activeModalTradeId));
+      if (trade) loadTradingViewWidgetForTrade(trade);
+    }
+  } else {
+    if (tvContainer) tvContainer.style.display = "none";
+    if (mt5Container) mt5Container.style.display = "flex";
+    if (btnMt5) btnMt5.classList.add("active");
+    if (btnTv) btnTv.classList.remove("active");
+    if (fetchMt5Btn) fetchMt5Btn.style.display = "inline-flex";
+    if (uploadLabel) uploadLabel.style.display = "inline-flex";
+  }
+}
+window.switchChartView = switchChartView;
+
+// Render TradingView Advanced Interactive Widget
+let currentTvWidgetInstance = null;
+function loadTradingViewWidgetForTrade(t) {
+  const canvas = document.getElementById("tv-widget-canvas");
+  if (!canvas) return;
+
+  const rawSym = (t.symbol || "XAUUSD").toUpperCase().replace("/", "");
+  // Map standard forex and metals to verified TradingView symbol feeds
+  let tvSymbol = `OANDA:${rawSym}`;
+  if (rawSym.includes("BTC") || rawSym.includes("ETH") || rawSym.includes("CRYPTO")) {
+    tvSymbol = `BINANCE:${rawSym}USDT`;
+  } else if (rawSym.includes("US30") || rawSym.includes("DJI")) {
+    tvSymbol = "CAPITALCOM:US30";
+  } else if (rawSym.includes("NAS") || rawSym.includes("NDX")) {
+    tvSymbol = "CAPITALCOM:US100";
+  } else if (rawSym === "XAUUSD" || rawSym === "GOLD") {
+    tvSymbol = "OANDA:XAUUSD";
+  }
+
+  // Clear previous canvas
+  canvas.innerHTML = "";
+  const widgetId = `tv_chart_container_${Date.now()}`;
+  canvas.id = widgetId;
+
+  // Use TradingView Widget library if loaded, else standard embed iframe
+  if (typeof TradingView !== "undefined" && TradingView.widget) {
+    try {
+      currentTvWidgetInstance = new TradingView.widget({
+        autosize: true,
+        symbol: tvSymbol,
+        interval: "1",
+        timezone: "Etc/UTC",
+        theme: "dark",
+        style: "1",
+        locale: "en",
+        toolbar_bg: "#0F141F",
+        enable_publishing: false,
+        hide_top_toolbar: false,
+        hide_legend: false,
+        save_image: true,
+        container_id: widgetId,
+        studies: [
+          "VWAP@tv-basicstudies"
+        ],
+        overrides: {
+          "paneProperties.background": "#0B0E14",
+          "paneProperties.vertGridProperties.color": "#151A24",
+          "paneProperties.horzGridProperties.color": "#151A24",
+          "symbolWatermarkProperties.transparency": 90,
+          "scalesProperties.textColor": "#9CA3AF"
+        }
+      });
+      return;
+    } catch (err) {
+      console.warn("TradingView widget init fallback:", err);
+    }
+  }
+
+  // High-performance direct iframe fallback
+  const iframeSrc = `https://s.tradingview.com/widgetembed/?frameElementId=tv_widget_iframe&symbol=${encodeURIComponent(tvSymbol)}&interval=1&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=0F141F&studies=VWAP%40tv-basicstudies&theme=dark&style=1&timezone=Etc%2FUTC`;
+  canvas.innerHTML = `
+    <iframe src="${iframeSrc}" style="width: 100%; height: 100%; border: none; border-radius: 8px;" allowtransparency="true" scrolling="no" allowfullscreen></iframe>
+  `;
+}
 
 function closeChartModal(event) {
   if (event && event.target && event.target.id !== "chart-modal-overlay" && !event.target.classList.contains("btn-close-modal")) {

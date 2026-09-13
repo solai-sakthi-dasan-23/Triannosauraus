@@ -703,22 +703,38 @@
           <span class="chart-modal-sub" id="modal-trade-sub">2026.09.08 · Asian Session · +$10.10</span>
         </div>
         <div class="chart-modal-actions">
-          <button class="btn-fetch-chart" id="btn-fetch-mt5-chart" onclick="fetchMT5ChartForActiveTrade()">
+          <div class="chart-view-switcher">
+            <button class="chart-view-btn active" id="btn-view-tv" onclick="switchChartView('tv')">
+              📈 TradingView Interactive
+            </button>
+            <button class="chart-view-btn" id="btn-view-mt5" onclick="switchChartView('mt5')">
+              🖥️ MT5 Execution
+            </button>
+          </div>
+          <button class="btn-fetch-chart" id="btn-fetch-mt5-chart" onclick="fetchMT5ChartForActiveTrade()" style="display: none;">
             ⚡ Fetch MT5 Chart
           </button>
-          <a class="btn-tv-chart" id="btn-tv-chart-link" href="#" target="_blank" rel="noopener noreferrer" title="View exact setup on TradingView live chart">
-            📈 TradingView Chart
-          </a>
-          <label class="btn-upload-chart" for="trade-chart-file-input">
-            📷 Replace / Upload
+          <label class="btn-upload-chart" for="trade-chart-file-input" id="btn-upload-chart-label" style="display: none;">
+            📷 Upload
           </label>
           <input type="file" id="trade-chart-file-input" accept="image/*" style="display: none;" onchange="handleChartFileUpload(event)">
+          <a class="btn-tv-chart" id="btn-tv-chart-link" href="#" target="_blank" rel="noopener noreferrer" title="Open in TradingView Full Screen">
+            ↗ Fullscreen
+          </a>
           <button class="btn-close-modal" onclick="closeChartModal()">✕ Close</button>
         </div>
       </div>
 
       <div class="chart-modal-body">
-        <div class="chart-modal-img-wrap" id="chart-modal-img-wrap">
+        <!-- TradingView Interactive Widget Container -->
+        <div class="tv-widget-container active" id="tv-widget-container">
+          <div class="tv-widget-canvas" id="tv-widget-canvas">
+            <!-- Injected via TradingView Widget JS -->
+          </div>
+        </div>
+
+        <!-- MT5 Screenshot & Image View Container -->
+        <div class="chart-modal-img-wrap" id="chart-modal-img-wrap" style="display: none;">
           <img id="modal-chart-img" src="" alt="Trade Execution Chart" class="chart-modal-img">
         </div>
         
@@ -874,6 +890,8 @@
     </div>
   </div>
 
+  <!-- TradingView Official Advanced Charting Library Script -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script src="js/journal.js"></script>
 </body>
 </html>
