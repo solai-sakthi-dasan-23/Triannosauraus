@@ -2036,7 +2036,25 @@ body {
   background: rgba(239, 68, 68, 0.12);
 }
 
-/* ═══════════════════════════════════════════════════ AUTH MODAL OVERLAY ═══ */
+/* ═══════════════════════════════════════════════════ AUTH MODAL & LOCK SCREEN ═══ */
+
+/* When user is signed out, lock and hide the dashboard completely */
+body.auth-locked .app-layout {
+  display: none !important;
+}
+
+body.auth-locked .auth-modal-overlay {
+  display: flex !important;
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, #151A26 0%, #080B10 100%);
+  z-index: 99999;
+}
+
+/* Hide close button when in mandatory locked sign-in mode */
+body.auth-locked .auth-close-btn {
+  display: none !important;
+}
 
 .auth-modal-overlay {
   position: fixed;

@@ -1325,23 +1325,34 @@ function checkAuthSession() {
       const user = JSON.parse(sessionRaw);
       applyAuthenticatedUserUI(user);
     } else {
-      // Default to Demo Solai Sakthi Dasan profile so the app immediately looks institutional & full
-      const defaultUser = {
-        name: "Solai Sakthi Dasan",
-        email: "solaysakthi.23@gmail.com",
-        tier: "APEX INSTITUTIONAL",
-        account_id: "TR-89974183",
-        avatar: "SS"
-      };
-      applyAuthenticatedUserUI(defaultUser);
+      // User is signed out: LOCK DASHBOARD COMPLETELY and display login screen
+      lockToAuthScreen();
     }
   } catch (e) {
     console.error("Session parse error", e);
+    lockToAuthScreen();
   }
 }
 window.checkAuthSession = checkAuthSession;
 
+function lockToAuthScreen() {
+  document.body.classList.add("auth-locked");
+  const overlay = document.getElementById("auth-modal-overlay");
+  if (overlay) {
+    overlay.style.display = "flex";
+  }
+  switchAuthTab('signin');
+}
+window.lockToAuthScreen = lockToAuthScreen;
+
 function applyAuthenticatedUserUI(user) {
+  // Unlock and reveal dashboard
+  document.body.classList.remove("auth-locked");
+  const overlay = document.getElementById("auth-modal-overlay");
+  if (overlay) {
+    overlay.style.display = "none";
+  }
+
   const loginBtn = document.getElementById("btn-login-trigger");
   const profilePill = document.getElementById("user-profile-pill");
   const avatarEl = document.getElementById("topbar-avatar");
@@ -1370,6 +1381,10 @@ function openAuthModal(defaultTab = 'signin') {
 window.openAuthModal = openAuthModal;
 
 function closeAuthModal(event) {
+  // If user is not authenticated, DO NOT ALLOW CLOSING THE LOGIN SCREEN
+  if (document.body.classList.contains("auth-locked")) {
+    return;
+  }
   if (event && event.target && event.target.id !== "auth-modal-overlay" && !event.target.classList.contains("auth-close-btn")) {
     return;
   }
@@ -1548,7 +1563,9 @@ function handleLogout() {
   if (loginBtn) loginBtn.style.display = "flex";
   if (profilePill) profilePill.style.display = "none";
 
-  showAuthToast("🚪 Signed out of Tri Rex Terminal session.");
+  // Hide the dashboard and lock to the login screen
+  lockToAuthScreen();
+  showAuthToast("🚪 Signed out of Tri Rex Terminal. Dashboard locked.");
 }
 window.handleLogout = handleLogout;
 
