@@ -341,7 +341,242 @@ body {
   gap: 0.85rem;
 }
 
-/* MT5 Status Pill */
+/* Institutional Multi-Account Switcher */
+.account-switcher-wrapper {
+  position: relative;
+}
+
+.account-switcher-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--bg-card);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.account-switcher-pill:hover {
+  background: var(--bg-card-subtle);
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+.acc-switcher-label {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.acc-switcher-badge {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: var(--green);
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.acc-switcher-badge.prop {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #38BDF8;
+}
+
+.acc-switcher-badge.portfolio {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: var(--gold);
+}
+
+.acc-switcher-arrow {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.account-switcher-wrapper.open .acc-switcher-arrow {
+  transform: rotate(180deg);
+}
+
+/* Account Switcher Dropdown */
+.account-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 310px;
+  background: #11151F;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+.account-dropdown-menu.show {
+  display: flex;
+  animation: fadeInDown 0.18s ease-out;
+}
+
+.account-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+}
+
+.account-list-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0.35rem 0;
+}
+
+.account-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.account-item-card:hover {
+  background: var(--bg-card-subtle);
+  border-color: rgba(255, 94, 20, 0.4);
+}
+
+.account-item-card.active {
+  background: rgba(255, 94, 20, 0.1);
+  border-color: var(--orange);
+}
+
+.account-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.acc-icon {
+  font-size: 1.15rem;
+}
+
+.acc-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.acc-name-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.acc-sub-text {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.account-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.acc-badge-pill {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.acc-badge-pill.combined {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--gold);
+}
+
+.acc-badge-pill.live {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--green);
+}
+
+.acc-badge-pill.prop {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38BDF8;
+}
+
+.acc-badge-pill.demo {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94A3B8;
+}
+
+.acc-check-icon {
+  color: var(--orange);
+  font-weight: 900;
+  font-size: 0.85rem;
+  display: none;
+}
+
+.account-item-card.active .acc-check-icon {
+  display: inline-block;
+}
+
+.account-dropdown-footer {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 0.25rem;
+}
+
+.btn-link-account-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  background: var(--bg-card);
+  border: 1px dashed rgba(255, 94, 20, 0.5);
+  border-radius: 6px;
+  color: var(--orange);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-link-account-trigger:hover {
+  background: rgba(255, 94, 20, 0.1);
+  border-color: var(--orange);
+}
+
+/* MT5 Status Pill Fallback & legacy */
 .mt5-status-pill {
   display: flex;
   align-items: center;
@@ -2787,7 +3022,7 @@ body.auth-locked .auth-close-btn {
 
   .mt5-status-pill {
     padding: 0.28rem 0.55rem;
-    max-width: 115px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2798,6 +3033,23 @@ body.auth-locked .auth-close-btn {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .acc-switcher-label {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-dropdown-menu {
+    position: fixed;
+    top: 54px;
+    left: 8px;
+    right: 8px;
+    width: calc(100vw - 16px);
+    max-width: 360px;
+    z-index: 1001;
   }
 
   #ws-badge {
