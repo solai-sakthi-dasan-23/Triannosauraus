@@ -2,12 +2,18 @@ import asyncio
 import json
 import os
 import datetime
+import urllib.request
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import List, Dict, Any, Optional
+import shutil
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import shutil
+from PIL import Image, ImageDraw, ImageFont
 
 import MetaTrader5 as mt5
 
@@ -59,7 +65,6 @@ def load_journal_from_file():
     global journal_history
     # Try loading from Supabase Cloud first
     try:
-        import urllib.request
         req = urllib.request.Request(
             f"{SUPABASE_URL}/rest/v1/trades?select=*&order=open_time.desc",
             headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
@@ -102,7 +107,6 @@ def save_journal_to_file():
     try:
         if journal_history:
             latest = journal_history[0]
-            import urllib.request
             payload = json.dumps({
                 "id": str(latest.get("id")),
                 "symbol": latest.get("symbol", "XAUUSD"),
@@ -448,8 +452,6 @@ async def upload_trade_image(file: UploadFile = File(...)):
 
 def generate_trade_chart(trade: Dict[str, Any]) -> str:
     """Generate professional institutional execution chart using MT5 candle data and execution geometry"""
-    from PIL import Image, ImageDraw, ImageFont
-
     symbol = trade.get("symbol", "XAUUSD")
     trade_id = str(trade.get("id", "1"))
     side = str(trade.get("type", "BUY")).upper()
@@ -802,10 +804,6 @@ class SendOTPRequest(BaseModel):
 
 @app.post("/api/send_otp")
 async def send_otp_endpoint(req: SendOTPRequest):
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-
     email = req.email.strip()
     code = req.code.strip()
     name = (req.name or "Trader").strip()
