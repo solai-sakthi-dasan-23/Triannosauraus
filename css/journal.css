@@ -2395,6 +2395,10 @@ body.auth-locked #link-account-modal-overlay {
   display: none !important;
 }
 
+#google-sso-modal-overlay {
+  z-index: 100002 !important;
+}
+
 /* Hide close button on auth modal when in mandatory locked sign-in mode */
 body.auth-locked #auth-modal-overlay .auth-close-btn {
   display: none !important;
