@@ -558,7 +558,7 @@ function applyMultiFilters() {
     }
 
     // 6. Side Filter (BUY / SELL)
-    if (selectedSide !== "ALL" && t.type.toUpperCase() !== selectedSide) return false;
+    if (selectedSide !== "ALL" && (t.type || "").toUpperCase() !== selectedSide) return false;
 
     // 7. Search Text Query
     if (currentSearchTerm) {
@@ -644,7 +644,7 @@ function applyMultiFilters() {
         <td>${t.open_time}</td>
         <td><span class="flight-setup">${t.session || "Asian"}</span></td>
         <td><strong>${t.setup_name}</strong></td>
-        <td><span class="side-badge ${t.type.toLowerCase()}">${t.type}</span></td>
+        <td><span class="side-badge ${(t.type || "").toLowerCase()}">${t.type || ""}</span></td>
         <td>${t.entry_price.toFixed(2)}</td>
         <td>${(t.exit_price || t.entry_price).toFixed(2)}</td>
         <td><small>${t.sl.toFixed(1)} / ${t.tp.toFixed(1)}</small></td>
@@ -794,7 +794,7 @@ function inspectDayDetail(dateStr) {
           <td>${t.open_time.split(" ")[1] || t.open_time}</td>
           <td><span class="flight-setup">${t.session || "Asian"}</span></td>
           <td><strong>${t.setup_name}</strong></td>
-          <td><span class="side-badge ${t.type.toLowerCase()}">${t.type}</span></td>
+          <td><span class="side-badge ${(t.type || "").toLowerCase()}">${t.type || ""}</span></td>
           <td>${t.entry_price.toFixed(2)}</td>
           <td>${(t.exit_price || t.entry_price).toFixed(2)}</td>
           <td class="${pnlClass}"><strong>${t.pnl >= 0 ? "+$" : "-$"}${Math.abs(t.pnl).toFixed(2)}</strong></td>
@@ -1061,7 +1061,6 @@ function renderAnalytics() {
 
   // Setup table
   const setups = ["VWAP", "PDH", "PDL", "SL Flip (VWAP)", "SL Flip (PDH)", "SL Flip (PDL)"];
-  const setupRows = document.getElementById("analytics-setup-rows");
   if (setupRows) {
     setupRows.innerHTML = setups.map(setup => {
       const sTrades = trades.filter(t => t.setup_name === setup);
