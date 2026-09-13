@@ -12,10 +12,27 @@ let currentSearchTerm = "";
 let currentActiveAccount = "ALL"; // 'ALL' = Combined Portfolio, or specific account id (e.g. '89974183')
 
 // Default trading accounts store (Empty by default for clean customer signup)
+// Default trading accounts store (Empty by default for clean customer signup)
 const DEFAULT_TRADING_ACCOUNTS = [];
 
 const ACCOUNTS_STORAGE_KEY = "trirex_trading_accounts_v1";
 const ACTIVE_ACC_STORAGE_KEY = "trirex_active_account_v1";
+const AUTH_STORAGE_KEY = "tri_rex_trader_session";
+const REGISTERED_USERS_KEY = "tri_rex_registered_users";
+const PENDING_VERIFICATION_KEY = "tri_rex_pending_verification";
+
+const SUPABASE_PROJECT_URL = "https://izppbcqcfupluvujimdj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_62HprtaLL2LIYbde4SzhgQ_SMcRODgB";
+
+// Initialize Supabase client if available
+let supabaseClient = null;
+try {
+  if (typeof window !== "undefined" && typeof window.supabase !== "undefined" && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
+  }
+} catch (e) {
+  console.warn("Supabase client init note:", e);
+}
 
 function getLinkedAccounts() {
   try {
@@ -224,9 +241,6 @@ function handleSocketMessage(data) {
     fetchInitialJournal(); // Re-sync journal and calendar stats
   }
 }
-
-const SUPABASE_PROJECT_URL = "https://izppbcqcfupluvujimdj.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_62HprtaLL2LIYbde4SzhgQ_SMcRODgB";
 
 // --- REST API FETCH WITH SUPABASE CLOUD SYNC ---
 async function fetchInitialJournal() {
@@ -1647,23 +1661,24 @@ function handleLinkAccountSubmit(event) {
   event.preventDefault();
   const nicknameInput = document.getElementById("link-acc-nickname");
   const loginInput = document.getElementById("link-acc-login");
+  const passwordInput = document.getElementById("link-acc-password");
   const serverInput = document.getElementById("link-acc-server");
   const typeInput = document.getElementById("link-acc-type");
   const balanceInput = document.getElementById("link-acc-balance");
 
   const nickname = (nicknameInput ? nicknameInput.value : "").trim();
   const login = (loginInput ? loginInput.value : "").trim();
+  const investorPassword = (passwordInput ? passwordInput.value : "").trim();
   const server = (serverInput ? serverInput.value : "").trim();
-  const type = typeInput ? typeInput.value : "Prop Evaluation";
+  const type = typeInput ? typeInput.value : "Live Apex";
   const balance = balanceInput ? parseFloat(balanceInput.value) || 100000 : 100000;
 
   if (!login || !server || !nickname) {
-    alert("Please fill in Account Nickname, Login, and Server.");
+    alert("Please fill in Account Nickname, MT5 Login, and Server Name.");
     return;
   }
 
   const accounts = getLinkedAccounts();
-  // Check if exists
   const existingIdx = accounts.findIndex(a => String(a.id) === String(login));
   const newAccount = {
     id: String(login),
@@ -1674,6 +1689,7 @@ function handleLinkAccountSubmit(event) {
     balance: balance,
     equity: balance,
     leverage: type.includes("Prop") ? 100 : 500,
+    has_investor_key: Boolean(investorPassword),
     status: "CONNECTED"
   };
 
@@ -1686,7 +1702,27 @@ function handleLinkAccountSubmit(event) {
   saveLinkedAccounts(accounts);
   closeLinkAccountModal();
   switchTradingAccount(newAccount.id);
-  showAuthToast(`✅ Linked account #${newAccount.id} (${newAccount.name}) successfully!`);
+
+  // If local or cloud MT5 server is running, dispatch connection attempt
+  fetch(`${API_BASE}/api/mt5/connect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      login: parseInt(login, 10),
+      server: server,
+      password: investorPassword || undefined
+    })
+  })
+  .then(res => res.json())
+  .then(resData => {
+    console.log("MT5 backend connection response:", resData);
+    checkMT5Status();
+  })
+  .catch(err => {
+    console.log("MT5 direct bridge note (using client audit cache):", err);
+  });
+
+  showAuthToast(`✅ Linked MT5 #${newAccount.id} (${newAccount.name}) successfully!`);
 }
 window.handleLinkAccountSubmit = handleLinkAccountSubmit;
 
@@ -1800,19 +1836,7 @@ window.syncMT5TradesNow = syncMT5TradesNow;
 // TRI REX CUSTOMER AUTHENTICATION & TRADER SESSION MANAGER
 // ============================================================================
 
-const AUTH_STORAGE_KEY = "tri_rex_trader_session";
-const REGISTERED_USERS_KEY = "tri_rex_registered_users";
-const PENDING_VERIFICATION_KEY = "tri_rex_pending_verification";
 
-// Initialize Supabase client if available
-let supabaseClient = null;
-try {
-  if (typeof window.supabase !== "undefined" && window.supabase.createClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
-  }
-} catch (e) {
-  console.warn("Supabase client init note:", e);
-}
 
 // Clean user store - No hardcoded demo accounts
 function getRegisteredUsers() {
@@ -1974,6 +1998,14 @@ function applyAuthenticatedUserUI(user) {
   if (ddName) ddName.textContent = user.name;
   if (ddEmail) ddEmail.textContent = user.email;
   if (ddTag) ddTag.textContent = `ID: ${user.account_id || 'TR-LIVE'} · Verified`;
+
+  // If newly registered or customer has no trading accounts linked yet, prompt account linking
+  const accounts = getLinkedAccounts();
+  if (accounts.length === 0) {
+    setTimeout(() => {
+      openLinkAccountModal();
+    }, 400);
+  }
 }
 
 function openAuthModal(defaultTab = 'signin') {
