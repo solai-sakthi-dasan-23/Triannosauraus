@@ -1311,7 +1311,7 @@ window.syncMT5TradesNow = syncMT5TradesNow;
 const AUTH_STORAGE_KEY = "tri_rex_trader_session";
 const REGISTERED_USERS_KEY = "tri_rex_registered_users";
 
-// Default seed institutional profiles
+// Default seed institutional profiles with strong uncompromised passwords
 const DEFAULT_TRADERS = {
   "trader@triannosaraus.com": {
     name: "Solai Sakthi Dasan",
@@ -1319,7 +1319,15 @@ const DEFAULT_TRADERS = {
     tier: "APEX INSTITUTIONAL",
     account_id: "TR-89974183",
     avatar: "SS",
-    passwordHash: "demo123"
+    passwordHash: "TriRex#Quant2026!Apex"
+  },
+  "solaysakthi.23@gmail.com": {
+    name: "Solai Sakthi Dasan",
+    email: "solaysakthi.23@gmail.com",
+    tier: "APEX INSTITUTIONAL",
+    account_id: "TR-89974183",
+    avatar: "SS",
+    passwordHash: "TriRex#Quant2026!Apex"
   }
 };
 
