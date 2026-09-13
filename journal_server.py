@@ -52,8 +52,29 @@ if not os.path.exists(JOURNAL_DB_FILE):
 active_positions: Dict[str, Dict[str, Any]] = {}
 journal_history: List[Dict[str, Any]] = []
 
+SUPABASE_URL = "https://izppbcqcfupluvujimdj.supabase.co"
+SUPABASE_KEY = "sb_publishable_62HprtaLL2LIYbde4SzhgQ_SMcRODgB"
+
 def load_journal_from_file():
     global journal_history
+    # Try loading from Supabase Cloud first
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            f"{SUPABASE_URL}/rest/v1/trades?select=*&order=open_time.desc",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 200:
+                cloud_trades = json.loads(resp.read().decode("utf-8"))
+                if cloud_trades and len(cloud_trades) > 0:
+                    journal_history = cloud_trades
+                    print(f"Loaded {len(journal_history)} trades directly from Supabase Cloud!")
+                    return
+    except Exception as e:
+        print(f"Supabase cloud sync note: {e}")
+
+    # Fallback to local JSON ledger
     if os.path.exists(JOURNAL_DB_FILE):
         try:
             with open(JOURNAL_DB_FILE, "r") as f:
@@ -110,6 +131,47 @@ def save_journal_to_file():
             json.dump({"history": journal_history}, f, indent=2)
     except Exception as e:
         print(f"Error saving journal DB: {e}")
+
+    # Asynchronously push to Supabase
+    try:
+        if journal_history:
+            latest = journal_history[0]
+            import urllib.request
+            payload = json.dumps({
+                "id": str(latest.get("id")),
+                "symbol": latest.get("symbol", "XAUUSD"),
+                "type": latest.get("type", "BUY"),
+                "lots": float(latest.get("lots", 0.01)),
+                "entry_price": float(latest.get("entry_price", 0.0)),
+                "exit_price": float(latest.get("exit_price", 0.0)) if latest.get("exit_price") else None,
+                "sl": float(latest.get("sl", 0.0)) if latest.get("sl") else None,
+                "tp": float(latest.get("tp", 0.0)) if latest.get("tp") else None,
+                "pnl": float(latest.get("pnl", 0.0)),
+                "outcome": latest.get("outcome", "WIN"),
+                "setup_name": latest.get("setup_name", "V8 Execution"),
+                "session": latest.get("session", "Asian"),
+                "date": latest.get("date", "2026.09.08"),
+                "open_time": latest.get("open_time", ""),
+                "close_time": latest.get("close_time", ""),
+                "mae": float(latest.get("mae", 0.0)),
+                "mfe": float(latest.get("mfe", 0.0)),
+                "status": latest.get("status", "CLOSED"),
+                "image_url": latest.get("image_url")
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{SUPABASE_URL}/rest/v1/trades",
+                data=payload,
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates"
+                },
+                method="POST"
+            )
+            urllib.request.urlopen(req, timeout=4)
+    except Exception as e:
+        print(f"Supabase sync note on trade save: {e}")
 
 # WebSocket Manager
 class ConnectionManager:

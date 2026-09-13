@@ -173,12 +173,36 @@ function handleSocketMessage(data) {
   }
 }
 
-// --- REST API FETCH WITH CLOUD FALLBACK ---
+const SUPABASE_PROJECT_URL = "https://izppbcqcfupluvujimdj.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_62HprtaLL2LIYbde4SzhgQ_SMcRODgB";
+
+// --- REST API FETCH WITH SUPABASE CLOUD SYNC ---
 async function fetchInitialJournal() {
+  try {
+    // 1. Fetch live from Supabase PostgreSQL REST API
+    const sbRes = await fetch(`${SUPABASE_PROJECT_URL}/rest/v1/trades?select=*&order=open_time.desc`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    if (sbRes.ok) {
+      const trades = await sbRes.json();
+      if (trades && trades.length > 0) {
+        processAndRenderRawTrades(trades);
+        console.log(`⚡ Tri Rex loaded ${trades.length} trades live from Supabase Cloud Database!`);
+        return;
+      }
+    }
+  } catch (sbErr) {
+    console.warn("Direct Supabase fetch fallback to API / local:", sbErr);
+  }
+
+  // 2. Fallback to /api/journal
   try {
     let res = await fetch(`${API_BASE}/api/journal`);
     if (!res.ok) {
-      // Fallback directly to static journal_db.json
+      // 3. Fallback directly to static journal_db.json
       res = await fetch(`journal_db.json`);
       if (res.ok) {
         const raw = await res.json();
@@ -1315,6 +1339,28 @@ function saveRegisteredUser(userObj) {
     localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(users));
   } catch (e) {
     console.error("Storage save error", e);
+  }
+
+  // Also sync profile to Supabase Database
+  try {
+    fetch(`${SUPABASE_PROJECT_URL}/rest/v1/profiles`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({
+        email: userObj.email,
+        full_name: userObj.name,
+        account_id: userObj.account_id,
+        tier: userObj.tier || "APEX INSTITUTIONAL",
+        avatar: userObj.avatar || "TR"
+      })
+    }).catch(err => console.warn("Supabase profile sync note:", err));
+  } catch (e) {
+    // Ignore offline error
   }
 }
 
