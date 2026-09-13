@@ -2686,7 +2686,7 @@ function resendVerificationCode() {
 }
 window.resendVerificationCode = resendVerificationCode;
 
-function handleVerifyCodeSubmit(event) {
+async function handleVerifyCodeSubmit(event) {
   event.preventDefault();
   const digits = [1, 2, 3, 4, 5, 6].map(i => {
     const el = document.getElementById(`v-digit-${i}`);
@@ -2707,13 +2707,32 @@ function handleVerifyCodeSubmit(event) {
 
   const pending = JSON.parse(pendingRaw);
 
+  // 1. If user entered local verification code
   if (digits === pending.code || digits === currentVerificationCode) {
-    // OTP Matched! Now navigate to Set & Confirm Password Screen
     showSetPasswordScreen(pending.email);
-    showAuthToast(`✅ OTP verified! Please create your password.`);
-  } else {
-    alert("Incorrect verification code. Please check and re-enter, or click Resend Code.");
+    showAuthToast("Security code verified! Please create your master password.");
+    return;
   }
+
+  // 2. Also attempt verifying against Supabase Auth 6-digit OTP token
+  if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.verifyOtp === "function") {
+    try {
+      const { data, error } = await supabaseClient.auth.verifyOtp({
+        email: pending.email,
+        token: digits,
+        type: "email"
+      });
+      if (!error && data) {
+        showSetPasswordScreen(pending.email);
+        showAuthToast("Security code verified! Please create your master password.");
+        return;
+      }
+    } catch (err) {
+      console.warn("Supabase verifyOtp check:", err);
+    }
+  }
+
+  alert("Incorrect verification code. Please check your email inbox and re-enter, or click Resend Code.");
 }
 window.handleVerifyCodeSubmit = handleVerifyCodeSubmit;
 
