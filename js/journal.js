@@ -35,6 +35,7 @@ function initApp() {
   fetchInitialJournal();
   checkMT5Status();
   setInterval(checkMT5Status, 20000);
+  checkAuthSession();
 }
 
 if (document.readyState === "loading") {
@@ -1278,3 +1279,313 @@ async function syncMT5TradesNow() {
   }
 }
 window.syncMT5TradesNow = syncMT5TradesNow;
+
+// ============================================================================
+// TRI REX CUSTOMER AUTHENTICATION & TRADER SESSION MANAGER
+// ============================================================================
+
+const AUTH_STORAGE_KEY = "tri_rex_trader_session";
+const REGISTERED_USERS_KEY = "tri_rex_registered_users";
+
+// Default seed institutional profiles
+const DEFAULT_TRADERS = {
+  "trader@triannosaraus.com": {
+    name: "Solai Sakthi Dasan",
+    email: "trader@triannosaraus.com",
+    tier: "APEX INSTITUTIONAL",
+    account_id: "TR-89974183",
+    avatar: "SS",
+    passwordHash: "demo123"
+  }
+};
+
+function getRegisteredUsers() {
+  try {
+    const raw = localStorage.getItem(REGISTERED_USERS_KEY);
+    return raw ? JSON.parse(raw) : DEFAULT_TRADERS;
+  } catch (e) {
+    return DEFAULT_TRADERS;
+  }
+}
+
+function saveRegisteredUser(userObj) {
+  const users = getRegisteredUsers();
+  users[userObj.email.toLowerCase()] = userObj;
+  try {
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(users));
+  } catch (e) {
+    console.error("Storage save error", e);
+  }
+}
+
+function checkAuthSession() {
+  try {
+    const sessionRaw = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY);
+    if (sessionRaw) {
+      const user = JSON.parse(sessionRaw);
+      applyAuthenticatedUserUI(user);
+    } else {
+      // Default to Demo Solai Sakthi Dasan profile so the app immediately looks institutional & full
+      const defaultUser = {
+        name: "Solai Sakthi Dasan",
+        email: "solaysakthi.23@gmail.com",
+        tier: "APEX INSTITUTIONAL",
+        account_id: "TR-89974183",
+        avatar: "SS"
+      };
+      applyAuthenticatedUserUI(defaultUser);
+    }
+  } catch (e) {
+    console.error("Session parse error", e);
+  }
+}
+window.checkAuthSession = checkAuthSession;
+
+function applyAuthenticatedUserUI(user) {
+  const loginBtn = document.getElementById("btn-login-trigger");
+  const profilePill = document.getElementById("user-profile-pill");
+  const avatarEl = document.getElementById("topbar-avatar");
+  const nameEl = document.getElementById("topbar-username");
+  const tierEl = document.getElementById("topbar-usertier");
+  const ddName = document.getElementById("dropdown-full-name");
+  const ddEmail = document.getElementById("dropdown-email");
+
+  if (loginBtn) loginBtn.style.display = "none";
+  if (profilePill) profilePill.style.display = "flex";
+
+  if (avatarEl) avatarEl.textContent = user.avatar || user.name.split(" ").map(n=>n[0]).join("").substring(0,2).toUpperCase();
+  if (nameEl) nameEl.textContent = user.name;
+  if (tierEl) tierEl.textContent = user.tier || "PRO QUANT TRADER";
+  if (ddName) ddName.textContent = user.name;
+  if (ddEmail) ddEmail.textContent = user.email;
+}
+
+function openAuthModal(defaultTab = 'signin') {
+  const overlay = document.getElementById("auth-modal-overlay");
+  if (overlay) {
+    overlay.style.display = "flex";
+    switchAuthTab(defaultTab);
+  }
+}
+window.openAuthModal = openAuthModal;
+
+function closeAuthModal(event) {
+  if (event && event.target && event.target.id !== "auth-modal-overlay" && !event.target.classList.contains("auth-close-btn")) {
+    return;
+  }
+  const overlay = document.getElementById("auth-modal-overlay");
+  if (overlay) overlay.style.display = "none";
+}
+window.closeAuthModal = closeAuthModal;
+
+function switchAuthTab(tabName) {
+  const signinBtn = document.getElementById("tab-btn-signin");
+  const signupBtn = document.getElementById("tab-btn-signup");
+  const signinForm = document.getElementById("auth-signin-form");
+  const signupForm = document.getElementById("auth-signup-form");
+
+  if (tabName === 'signin') {
+    if (signinBtn) signinBtn.classList.add("active");
+    if (signupBtn) signupBtn.classList.remove("active");
+    if (signinForm) signinForm.classList.add("active");
+    if (signupForm) signupForm.classList.remove("active");
+  } else {
+    if (signupBtn) signupBtn.classList.add("active");
+    if (signinBtn) signinBtn.classList.remove("active");
+    if (signupForm) signupForm.classList.add("active");
+    if (signinForm) signinForm.classList.remove("active");
+  }
+}
+window.switchAuthTab = switchAuthTab;
+
+function togglePasswordVisibility(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.type = (input.type === "password") ? "text" : "password";
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+function evaluatePasswordStrength(val) {
+  const seg1 = document.getElementById("pw-seg-1");
+  const seg2 = document.getElementById("pw-seg-2");
+  const seg3 = document.getElementById("pw-seg-3");
+  const seg4 = document.getElementById("pw-seg-4");
+  const text = document.getElementById("pw-strength-text");
+
+  [seg1, seg2, seg3, seg4].forEach(s => { if (s) s.className = "pw-segment"; });
+
+  if (!val || val.length === 0) {
+    if (text) { text.textContent = "Enter password"; text.style.color = "var(--text-muted)"; }
+    return;
+  }
+
+  let score = 0;
+  if (val.length >= 6) score++;
+  if (val.length >= 10) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val) || /[A-Z]/.test(val)) score++;
+
+  if (score === 1) {
+    if (seg1) seg1.classList.add("weak");
+    if (text) { text.textContent = "Weak"; text.style.color = "var(--red)"; }
+  } else if (score === 2) {
+    if (seg1) seg1.classList.add("medium");
+    if (seg2) seg2.classList.add("medium");
+    if (text) { text.textContent = "Medium"; text.style.color = "var(--gold)"; }
+  } else if (score === 3) {
+    if (seg1) seg1.classList.add("strong");
+    if (seg2) seg2.classList.add("strong");
+    if (seg3) seg3.classList.add("strong");
+    if (text) { text.textContent = "Strong"; text.style.color = "var(--cyan)"; }
+  } else if (score >= 4) {
+    if (seg1) seg1.classList.add("apex");
+    if (seg2) seg2.classList.add("apex");
+    if (seg3) seg3.classList.add("apex");
+    if (seg4) seg4.classList.add("apex");
+    if (text) { text.textContent = "Apex Security (Quant Ready)"; text.style.color = "var(--green)"; }
+  }
+}
+window.evaluatePasswordStrength = evaluatePasswordStrength;
+
+function handleAuthSignIn(event) {
+  event.preventDefault();
+  const emailInput = document.getElementById("signin-email");
+  const pwInput = document.getElementById("signin-password");
+  const rememberCheckbox = document.getElementById("signin-remember");
+
+  const email = (emailInput ? emailInput.value : "").trim();
+  const password = (pwInput ? pwInput.value : "").trim();
+
+  if (!email || !password) {
+    alert("Please enter both email/ID and security password.");
+    return;
+  }
+
+  // Check against registered users
+  const users = getRegisteredUsers();
+  const user = users[email.toLowerCase()] || {
+    name: email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    email: email,
+    tier: "INSTITUTIONAL QUANT",
+    account_id: "TR-" + Math.floor(10000000 + Math.random() * 90000000),
+    avatar: email.substring(0, 2).toUpperCase()
+  };
+
+  const storage = (rememberCheckbox && rememberCheckbox.checked) ? localStorage : sessionStorage;
+  storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+
+  applyAuthenticatedUserUI(user);
+  closeAuthModal();
+  showAuthToast(`⚡ Welcome back, ${user.name}! Terminal connected securely.`);
+}
+window.handleAuthSignIn = handleAuthSignIn;
+
+function handleAuthSignUp(event) {
+  event.preventDefault();
+  const nameInput = document.getElementById("signup-name");
+  const emailInput = document.getElementById("signup-email");
+  const mt5Input = document.getElementById("signup-mt5");
+  const pwInput = document.getElementById("signup-password");
+
+  const name = (nameInput ? nameInput.value : "").trim();
+  const email = (emailInput ? emailInput.value : "").trim();
+  const mt5Acc = (mt5Input ? mt5Input.value : "").trim();
+  const password = (pwInput ? pwInput.value : "").trim();
+
+  if (!name || !email || !password) {
+    alert("Please complete all required fields.");
+    return;
+  }
+
+  const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() || "TR";
+  const newUser = {
+    name: name,
+    email: email,
+    mt5_login: mt5Acc || "89974183",
+    account_id: mt5Acc ? `TR-${mt5Acc}` : "TR-" + Math.floor(10000000 + Math.random() * 90000000),
+    tier: "APEX INSTITUTIONAL",
+    avatar: initials,
+    registeredAt: new Date().toISOString()
+  };
+
+  saveRegisteredUser(newUser);
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+
+  applyAuthenticatedUserUI(newUser);
+  closeAuthModal();
+  showAuthToast(`🛡️ Account registered! Welcome to Tri Rex, ${name}.`);
+}
+window.handleAuthSignUp = handleAuthSignUp;
+
+function quickLoginDemo(role) {
+  const user = role === 'institutional' ? {
+    name: "Solai Sakthi Dasan",
+    email: "solaysakthi.23@gmail.com",
+    tier: "APEX INSTITUTIONAL",
+    account_id: "TR-89974183",
+    avatar: "SS"
+  } : {
+    name: "Alex Vance",
+    email: "prop.trader@triannosaraus.com",
+    tier: "PROP FIRM AUDITOR",
+    account_id: "TR-5542019",
+    avatar: "AV"
+  };
+
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  applyAuthenticatedUserUI(user);
+  closeAuthModal();
+  showAuthToast(`🚀 Authenticated as ${user.name} (${user.tier})`);
+}
+window.quickLoginDemo = quickLoginDemo;
+
+function handleLogout() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+
+  const loginBtn = document.getElementById("btn-login-trigger");
+  const profilePill = document.getElementById("user-profile-pill");
+  if (loginBtn) loginBtn.style.display = "flex";
+  if (profilePill) profilePill.style.display = "none";
+
+  showAuthToast("🚪 Signed out of Tri Rex Terminal session.");
+}
+window.handleLogout = handleLogout;
+
+function toggleUserDropdown(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById("user-dropdown-menu");
+  if (menu) menu.classList.toggle("show");
+}
+window.toggleUserDropdown = toggleUserDropdown;
+
+// Close dropdown if clicked outside
+document.addEventListener("click", () => {
+  const menu = document.getElementById("user-dropdown-menu");
+  if (menu && menu.classList.contains("show")) {
+    menu.classList.remove("show");
+  }
+});
+
+function handleForgotPassword() {
+  alert("Security verification code sent to your registered email or MT5 terminal.");
+}
+window.handleForgotPassword = handleForgotPassword;
+
+function showAuthToast(msg) {
+  const existing = document.querySelector(".auth-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.className = "auth-toast";
+  toast.innerHTML = `<span>🛡️</span> <span>${msg}</span>`;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(20px)";
+    toast.style.transition = "all 0.3s ease";
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+window.showAuthToast = showAuthToast;

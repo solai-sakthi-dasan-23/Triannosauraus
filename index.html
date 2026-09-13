@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>V8 Copilot & Institutional Trade Journal | TradeViz Pro</title>
-  <meta name="description" content="Institutional Zero-Manual Trade Journal & Real-Time In-Flight Predictive Copilot">
+  <title>Tri Rex | Institutional Trade Journal & Copilot — Triannosaraus Traders</title>
+  <meta name="description" content="Tri Rex by Triannosaraus Traders — Born to Conquer. Enterprise Zero-Manual Trade Journal, Risk Guardian & Real-Time Copilot.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/journal.css">
 </head>
 <body>
@@ -16,11 +17,14 @@
     <!-- ═══════════════════════════════════════════════════ SIDEBAR NAVIGATION ═══ -->
     <aside class="app-sidebar" id="app-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-brand">
-          <div class="brand-icon">⚡</div>
+        <div class="sidebar-brand" onclick="navigateTo('copilot')">
+          <img src="assets/logo.png" alt="Triannosaraus Logo" class="brand-logo-img">
           <div class="brand-info">
-            <span class="brand-title">TradeViz Pro</span>
-            <span class="brand-edition">V8 Institutional</span>
+            <div class="brand-title-wrap">
+              <span class="brand-title">TRI <span class="brand-title-rex">REX</span></span>
+            </div>
+            <span class="brand-edition">Triannosaraus Traders</span>
+            <span class="brand-submotto">BORN TO CONQUER</span>
           </div>
         </div>
       </div>
@@ -80,7 +84,7 @@
       <header class="app-topbar">
         <div class="topbar-left">
           <div class="page-breadcrumb">
-            <span class="crumb-app">TradeViz Pro</span>
+            <span class="crumb-app">Tri Rex</span>
             <span class="crumb-sep">/</span>
             <span class="crumb-active" id="current-page-title">In-Flight Copilot</span>
           </div>
@@ -109,8 +113,47 @@
           </div>
 
           <button class="btn-topbar-action" id="btn-simulate-trade" onclick="triggerSampleTrade()" title="Simulate incoming Webhook trade">
-            <span class="btn-icon">⚡</span> Emulate Live V8 Order
+            <span class="btn-icon">⚡</span> Emulate V8 Order
           </button>
+
+          <!-- Customer Auth & Profile Pill -->
+          <div id="auth-topbar-container">
+            <button class="btn-auth-trigger" id="btn-login-trigger" onclick="openAuthModal('signin')">
+              <span>🔐</span> Trader Login
+            </button>
+            <div class="user-profile-pill" id="user-profile-pill" style="display: none;" onclick="toggleUserDropdown(event)">
+              <div class="user-avatar" id="topbar-avatar">SS</div>
+              <div class="user-info-text">
+                <span class="user-name" id="topbar-username">Solai Sakthi Dasan</span>
+                <span class="user-tier" id="topbar-usertier">APEX INSTITUTIONAL</span>
+              </div>
+              <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 0.2rem;">▼</span>
+
+              <!-- User Dropdown Menu -->
+              <div class="user-dropdown-menu" id="user-dropdown-menu">
+                <div class="dropdown-header-card">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: #FFF;" id="dropdown-full-name">Solai Sakthi Dasan</div>
+                  <div class="dropdown-user-email" id="dropdown-email">solaysakthi.23@gmail.com</div>
+                  <div style="font-size: 0.65rem; color: var(--gold); margin-top: 3px; font-family: var(--font-mono);">
+                    ID: TR-89974183 · Verified
+                  </div>
+                </div>
+                <button class="dropdown-btn" onclick="navigateTo('settings'); toggleUserDropdown(event);">
+                  <span>⚙️</span> MT5 & API Settings
+                </button>
+                <button class="dropdown-btn" onclick="navigateTo('risk'); toggleUserDropdown(event);">
+                  <span>🛡️</span> Risk Guardian Rules
+                </button>
+                <button class="dropdown-btn" onclick="openAuthModal('signup'); toggleUserDropdown(event);">
+                  <span>➕</span> Switch / Add Account
+                </button>
+                <div style="height: 1px; background: var(--border-subtle); margin: 0.25rem 0;"></div>
+                <button class="dropdown-btn danger" onclick="handleLogout(); toggleUserDropdown(event);">
+                  <span>🚪</span> Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -666,6 +709,149 @@
           <div class="modal-trade-stats" id="modal-trade-stats">
             <!-- Populated dynamically: Entry, Exit, SL, TP, Net PnL, MAE, MFE -->
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────────── CUSTOMER SECURE AUTH MODAL ─── -->
+  <div class="auth-modal-overlay" id="auth-modal-overlay" style="display: none;" onclick="closeAuthModal(event)">
+    <div class="auth-card" onclick="event.stopPropagation()">
+      <div class="auth-card-banner">
+        <button class="auth-close-btn" onclick="closeAuthModal()">✕</button>
+        <img src="assets/logo.png" alt="Triannosaraus Traders Logo" class="auth-logo-center">
+        <h2 class="auth-title">TRI <span>REX</span> TERMINAL</h2>
+        <p class="auth-subtitle">Triannosaraus Traders · Institutional Access Portal</p>
+      </div>
+
+      <!-- Auth Tabs: Sign In vs Sign Up -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-btn-signin" onclick="switchAuthTab('signin')">
+          Sign In
+        </button>
+        <button class="auth-tab" id="tab-btn-signup" onclick="switchAuthTab('signup')">
+          Create Account
+        </button>
+      </div>
+
+      <div class="auth-body">
+        
+        <!-- ── SIGN IN FORM ── -->
+        <form class="auth-view active" id="auth-signin-form" onsubmit="handleAuthSignIn(event)">
+          <div class="form-group">
+            <label class="form-label" for="signin-email">Trader Email or Account ID</label>
+            <div class="input-with-icon">
+              <span class="input-icon">👤</span>
+              <input type="text" id="signin-email" class="auth-input" placeholder="trader@triannosaraus.com" required autocomplete="username">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="form-label-row">
+              <label class="form-label" for="signin-password">Security Password</label>
+              <a class="form-forgot-link" onclick="handleForgotPassword()">Forgot Password?</a>
+            </div>
+            <div class="input-with-icon">
+              <span class="input-icon">🔑</span>
+              <input type="password" id="signin-password" class="auth-input" placeholder="••••••••••••" required autocomplete="current-password">
+              <button type="button" class="input-toggle-pw" onclick="togglePasswordVisibility('signin-password')">👁️</button>
+            </div>
+          </div>
+
+          <div class="form-checkbox-row">
+            <input type="checkbox" id="signin-remember" checked>
+            <label for="signin-remember">Remember this workstation for 30 days</label>
+          </div>
+
+          <button type="submit" class="btn-auth-submit">
+            <span>⚡ Sign In to Terminal</span>
+          </button>
+
+          <div class="auth-demo-divider">Instant Demo Access</div>
+
+          <div class="demo-buttons-row">
+            <button type="button" class="btn-demo-quick" onclick="quickLoginDemo('institutional')">
+              <span>🏛️</span> Institutional Fund
+            </button>
+            <button type="button" class="btn-demo-quick" onclick="quickLoginDemo('prop')">
+              <span>💎</span> Prop Firm Trader
+            </button>
+          </div>
+        </form>
+
+        <!-- ── SIGN UP FORM ── -->
+        <form class="auth-view" id="auth-signup-form" onsubmit="handleAuthSignUp(event)">
+          <div class="form-group">
+            <label class="form-label" for="signup-name">Trader Full Name</label>
+            <div class="input-with-icon">
+              <span class="input-icon">🏷️</span>
+              <input type="text" id="signup-name" class="auth-input" placeholder="Solai Sakthi Dasan" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-email">Work / Trading Email</label>
+            <div class="input-with-icon">
+              <span class="input-icon">✉️</span>
+              <input type="email" id="signup-email" class="auth-input" placeholder="trader@domain.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-mt5">MT5 Account ID (Optional)</label>
+            <div class="input-with-icon">
+              <span class="input-icon">📈</span>
+              <input type="text" id="signup-mt5" class="auth-input" placeholder="89974183 (Auto-bind)">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-password">Master Password</label>
+            <div class="input-with-icon">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="signup-password" class="auth-input" placeholder="Min. 8 characters with numbers" required oninput="evaluatePasswordStrength(this.value)">
+              <button type="button" class="input-toggle-pw" onclick="togglePasswordVisibility('signup-password')">👁️</button>
+            </div>
+            
+            <div class="pw-strength-container" id="pw-strength-wrap">
+              <div class="pw-strength-bar">
+                <div class="pw-segment" id="pw-seg-1"></div>
+                <div class="pw-segment" id="pw-seg-2"></div>
+                <div class="pw-segment" id="pw-seg-3"></div>
+                <div class="pw-segment" id="pw-seg-4"></div>
+              </div>
+              <div class="pw-strength-label">
+                <span>Password Strength</span>
+                <strong id="pw-strength-text" style="color: var(--text-muted);">Enter password</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-checkbox-row">
+            <input type="checkbox" id="signup-terms" required checked>
+            <label for="signup-terms">I agree to Tri Rex Quantitative Risk Guidelines & Privacy Policy</label>
+          </div>
+
+          <button type="submit" class="btn-auth-submit">
+            <span>🛡️ Create Trader Profile</span>
+          </button>
+        </form>
+
+      </div>
+
+      <!-- Trust & Security Badges -->
+      <div class="auth-security-footer">
+        <div class="security-badge-item">
+          <span class="sec-icon">🔒</span>
+          <span>256-Bit Encrypted</span>
+        </div>
+        <div class="security-badge-item">
+          <span class="sec-icon">🛡️</span>
+          <span>Zero-Custody Ledger</span>
+        </div>
+        <div class="security-badge-item">
+          <span class="sec-icon">⚡</span>
+          <span>ISO-27001 Protocol</span>
         </div>
       </div>
     </div>
