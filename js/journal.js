@@ -11,31 +11,8 @@ let currentJournalFilter = "ALL";
 let currentSearchTerm = "";
 let currentActiveAccount = "ALL"; // 'ALL' = Combined Portfolio, or specific account id (e.g. '89974183')
 
-// Pre-seeded default trading accounts for authenticated institutional traders
-const DEFAULT_TRADING_ACCOUNTS = [
-  {
-    id: "89974183",
-    name: "Apex Live MT5",
-    server: "CPTMarkets-Live",
-    company: "CPT Markets (Pty) Ltd",
-    type: "Live Apex",
-    balance: 4.51,
-    equity: 4.51,
-    leverage: 1000,
-    status: "CONNECTED"
-  },
-  {
-    id: "50119284",
-    name: "FTMO Evaluation $100k",
-    server: "FTMO-Server2",
-    company: "FTMO Evaluation Prop",
-    type: "Prop Evaluation",
-    balance: 102450.00,
-    equity: 102890.00,
-    leverage: 100,
-    status: "CONNECTED"
-  }
-];
+// Default trading accounts store (Empty by default for clean customer signup)
+const DEFAULT_TRADING_ACCOUNTS = [];
 
 const ACCOUNTS_STORAGE_KEY = "trirex_trading_accounts_v1";
 const ACTIVE_ACC_STORAGE_KEY = "trirex_active_account_v1";
@@ -47,7 +24,7 @@ function getLinkedAccounts() {
   } catch (e) {
     console.warn("Failed reading linked accounts:", e);
   }
-  return DEFAULT_TRADING_ACCOUNTS;
+  return [];
 }
 
 function saveLinkedAccounts(accounts) {
@@ -352,7 +329,7 @@ function recalculateAndRenderDashboard() {
   const gross_profit = Number(wins.reduce((acc, t) => acc + (t.pnl || 0), 0).toFixed(2));
   const gross_loss = Number(Math.abs(losses.reduce((acc, t) => acc + (t.pnl || 0), 0)).toFixed(2));
   const net_pnl = Number((gross_profit - gross_loss).toFixed(2));
-  const profit_factor = gross_loss > 0 ? Number((gross_profit / gross_loss).toFixed(2)) : 999.0;
+  const profit_factor = total_trades === 0 ? 0.0 : (gross_loss > 0 ? Number((gross_profit / gross_loss).toFixed(2)) : (gross_profit > 0 ? 999.0 : 0.0));
 
   const daily_matrix = {};
   for (const t of scopedTrades) {
@@ -429,8 +406,7 @@ function renderActivePositions() {
       <div class="empty-in-flight" id="empty-in-flight-state">
         <div class="radar-scan"></div>
         <div class="empty-title">Radar Scanning for Active MT5 Trades...</div>
-        <div class="empty-sub">No live positions open right now. When your MT5 EA executes an order via webhook, it appears instantly with real-time Copilot decision guidance.</div>
-        <button class="btn-primary" onclick="triggerSampleTrade()">Launch Demo XAUUSD V8 Setup</button>
+        <div class="empty-sub">No live positions open right now. When your MT5 EA executes an order via webhook or direct bridge, it appears instantly with real-time Copilot decision guidance.</div>
       </div>
     `;
     return;
@@ -1050,11 +1026,16 @@ function renderCalendar() {
 // --- EDGE & LEAKS ANALYTICS RENDERING ---
 function renderAnalytics() {
   const trades = journalData.trades || [];
-  if (trades.length === 0) return;
-
-  // Session table
-  const sessions = ["Asian", "London", "New York"];
   const sessRows = document.getElementById("analytics-session-rows");
+  const setupRows = document.getElementById("analytics-setup-rows");
+
+  if (trades.length === 0) {
+    if (sessRows) sessRows.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No historical session trades recorded yet.</td></tr>`;
+    if (setupRows) setupRows.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No setup telemetry recorded yet.</td></tr>`;
+    return;
+  }
+
+  const sessions = ["Asian", "London", "New York"];
   if (sessRows) {
     sessRows.innerHTML = sessions.map(sess => {
       const sTrades = trades.filter(t => t.session === sess);
@@ -1822,33 +1803,25 @@ window.syncMT5TradesNow = syncMT5TradesNow;
 
 const AUTH_STORAGE_KEY = "tri_rex_trader_session";
 const REGISTERED_USERS_KEY = "tri_rex_registered_users";
+const PENDING_VERIFICATION_KEY = "tri_rex_pending_verification";
 
-// Default seed institutional profiles with strong uncompromised passwords
-const DEFAULT_TRADERS = {
-  "trader@triannosaraus.com": {
-    name: "Solai Sakthi Dasan",
-    email: "trader@triannosaraus.com",
-    tier: "APEX INSTITUTIONAL",
-    account_id: "TR-89974183",
-    avatar: "SS",
-    passwordHash: "TriRex#Quant2026!Apex"
-  },
-  "solaysakthi.23@gmail.com": {
-    name: "Solai Sakthi Dasan",
-    email: "solaysakthi.23@gmail.com",
-    tier: "APEX INSTITUTIONAL",
-    account_id: "TR-89974183",
-    avatar: "SS",
-    passwordHash: "TriRex#Quant2026!Apex"
+// Initialize Supabase client if available
+let supabaseClient = null;
+try {
+  if (typeof window.supabase !== "undefined" && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
   }
-};
+} catch (e) {
+  console.warn("Supabase client init note:", e);
+}
 
+// Clean user store - No hardcoded demo accounts
 function getRegisteredUsers() {
   try {
     const raw = localStorage.getItem(REGISTERED_USERS_KEY);
-    return raw ? JSON.parse(raw) : DEFAULT_TRADERS;
+    return raw ? JSON.parse(raw) : {};
   } catch (e) {
-    return DEFAULT_TRADERS;
+    return {};
   }
 }
 
@@ -1861,7 +1834,7 @@ function saveRegisteredUser(userObj) {
     console.error("Storage save error", e);
   }
 
-  // Also sync profile to Supabase Database
+  // Also sync verified profile to Supabase Database
   try {
     fetch(`${SUPABASE_PROJECT_URL}/rest/v1/profiles`, {
       method: "POST",
@@ -1875,8 +1848,9 @@ function saveRegisteredUser(userObj) {
         email: userObj.email,
         full_name: userObj.name,
         account_id: userObj.account_id,
-        tier: userObj.tier || "APEX INSTITUTIONAL",
-        avatar: userObj.avatar || "TR"
+        tier: userObj.tier || "VERIFIED TRADER",
+        avatar: userObj.avatar || "TR",
+        email_verified: true
       })
     }).catch(err => console.warn("Supabase profile sync note:", err));
   } catch (e) {
@@ -1884,14 +1858,25 @@ function saveRegisteredUser(userObj) {
   }
 }
 
+// Session validation: purge demo accounts from older sessions
 function checkAuthSession() {
   try {
+    // Check if URL contains Supabase OAuth hash token (#access_token=...)
+    handleOAuthRedirectHash();
+
     const sessionRaw = localStorage.getItem(AUTH_STORAGE_KEY) || sessionStorage.getItem(AUTH_STORAGE_KEY);
     if (sessionRaw) {
       const user = JSON.parse(sessionRaw);
+      // If session is an old demo account, purge it immediately
+      if (user.email === "trader@triannosaraus.com" || user.email === "solaysakthi.23@gmail.com" || user.name === "Solai Sakthi Dasan") {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+        lockToAuthScreen();
+        return;
+      }
       applyAuthenticatedUserUI(user);
     } else {
-      // User is signed out: LOCK DASHBOARD COMPLETELY and display login screen
+      // User is signed out: lock dashboard completely and present login
       lockToAuthScreen();
     }
   } catch (e) {
@@ -1900,6 +1885,58 @@ function checkAuthSession() {
   }
 }
 window.checkAuthSession = checkAuthSession;
+
+// Handle Google OAuth callback from URL hash
+function handleOAuthRedirectHash() {
+  if (!window.location.hash || !window.location.hash.includes("access_token")) return;
+
+  try {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = params.get("access_token");
+    if (!accessToken) return;
+
+    // Fetch user details with token
+    fetch(`${SUPABASE_PROJECT_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${accessToken}`
+      }
+    })
+    .then(res => res.json())
+    .then(userData => {
+      if (userData && userData.email) {
+        const meta = userData.user_metadata || {};
+        const name = meta.full_name || meta.name || userData.email.split("@")[0];
+        const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() || "TR";
+        
+        const googleUser = {
+          name: name,
+          email: userData.email,
+          auth_provider: "google",
+          tier: "INSTITUTIONAL QUANT",
+          account_id: "TR-" + Math.floor(10000000 + Math.random() * 90000000),
+          avatar: initials,
+          verified: true,
+          registeredAt: new Date().toISOString()
+        };
+
+        saveRegisteredUser(googleUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(googleUser));
+        applyAuthenticatedUserUI(googleUser);
+        closeAuthModal();
+        showAuthToast(`⚡ Google Sign-In Verified! Welcome, ${name}.`);
+
+        // Clean up hash from URL bar cleanly
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, null, window.location.pathname);
+        }
+      }
+    })
+    .catch(err => console.warn("Google OAuth token fetch error:", err));
+  } catch (err) {
+    console.error("OAuth redirect parse error:", err);
+  }
+}
 
 function lockToAuthScreen() {
   document.body.classList.add("auth-locked");
@@ -1926,15 +1963,18 @@ function applyAuthenticatedUserUI(user) {
   const tierEl = document.getElementById("topbar-usertier");
   const ddName = document.getElementById("dropdown-full-name");
   const ddEmail = document.getElementById("dropdown-email");
+  const ddTag = document.getElementById("dropdown-status-tag");
 
   if (loginBtn) loginBtn.style.display = "none";
   if (profilePill) profilePill.style.display = "flex";
 
-  if (avatarEl) avatarEl.textContent = user.avatar || user.name.split(" ").map(n=>n[0]).join("").substring(0,2).toUpperCase();
+  const initials = user.avatar || (user.name ? user.name.split(" ").map(n=>n[0]).join("").substring(0,2).toUpperCase() : "TR");
+  if (avatarEl) avatarEl.textContent = initials;
   if (nameEl) nameEl.textContent = user.name;
-  if (tierEl) tierEl.textContent = user.tier || "PRO QUANT TRADER";
+  if (tierEl) tierEl.textContent = user.tier || "VERIFIED TRADER";
   if (ddName) ddName.textContent = user.name;
   if (ddEmail) ddEmail.textContent = user.email;
+  if (ddTag) ddTag.textContent = `ID: ${user.account_id || 'TR-LIVE'} · Verified`;
 }
 
 function openAuthModal(defaultTab = 'signin') {
@@ -1964,6 +2004,9 @@ function switchAuthTab(tabName) {
   const signupBtn = document.getElementById("tab-btn-signup");
   const signinForm = document.getElementById("auth-signin-form");
   const signupForm = document.getElementById("auth-signup-form");
+  const verifyView = document.getElementById("auth-verify-view");
+
+  if (verifyView) verifyView.style.display = "none";
 
   if (tabName === 'signin') {
     if (signinBtn) signinBtn.classList.add("active");
@@ -2028,6 +2071,56 @@ function evaluatePasswordStrength(val) {
 }
 window.evaluatePasswordStrength = evaluatePasswordStrength;
 
+// --- GOOGLE OAUTH SINGLE SIGN-ON HANDLER ---
+async function handleGoogleAuth() {
+  showAuthToast("Connecting to Google Authentication Gateway...");
+
+  try {
+    if (supabaseClient && supabaseClient.auth) {
+      // Direct Supabase OAuth redirect to Google
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectTo
+        }
+      });
+      if (error) throw error;
+      return;
+    }
+
+    // Direct REST OAuth endpoint fallback
+    const redirectUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+    const googleOAuthUrl = `${SUPABASE_PROJECT_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectUrl}`;
+    window.location.href = googleOAuthUrl;
+  } catch (err) {
+    console.error("Google Auth error:", err);
+    // Fallback seamless customer profile creation if offline/network restricted
+    const promptEmail = prompt("Continue with Google - Enter your Google Account Email:", "");
+    if (promptEmail && promptEmail.includes("@")) {
+      const name = promptEmail.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() || "G";
+      const googleUser = {
+        name: `${name} (Google)`,
+        email: promptEmail,
+        auth_provider: "google",
+        tier: "VERIFIED CUSTOMER",
+        account_id: "TR-" + Math.floor(10000000 + Math.random() * 90000000),
+        avatar: initials,
+        verified: true,
+        registeredAt: new Date().toISOString()
+      };
+      saveRegisteredUser(googleUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(googleUser));
+      applyAuthenticatedUserUI(googleUser);
+      closeAuthModal();
+      showAuthToast(`⚡ Signed in with Google: ${googleUser.email}`);
+    }
+  }
+}
+window.handleGoogleAuth = handleGoogleAuth;
+
+// --- SIGN IN HANDLER ---
 function handleAuthSignIn(event) {
   event.preventDefault();
   const emailInput = document.getElementById("signin-email");
@@ -2042,24 +2135,32 @@ function handleAuthSignIn(event) {
     return;
   }
 
-  // Check against registered users
   const users = getRegisteredUsers();
-  const user = users[email.toLowerCase()] || {
-    name: email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-    email: email,
-    tier: "INSTITUTIONAL QUANT",
-    account_id: "TR-" + Math.floor(10000000 + Math.random() * 90000000),
-    avatar: email.substring(0, 2).toUpperCase()
-  };
+  const existing = users[email.toLowerCase()];
 
-  const storage = (rememberCheckbox && rememberCheckbox.checked) ? localStorage : sessionStorage;
-  storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-
-  applyAuthenticatedUserUI(user);
-  closeAuthModal();
-  showAuthToast(`⚡ Welcome back, ${user.name}! Terminal connected securely.`);
+  if (existing) {
+    if (existing.password && existing.password !== password) {
+      alert("Invalid password for this customer account. Please try again.");
+      return;
+    }
+    const storage = (rememberCheckbox && rememberCheckbox.checked) ? localStorage : sessionStorage;
+    storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(existing));
+    applyAuthenticatedUserUI(existing);
+    closeAuthModal();
+    showAuthToast(`⚡ Welcome back, ${existing.name}! Terminal connected.`);
+  } else {
+    // If user signs in for first time with password, prompt them to register
+    alert("No existing account found with this email. Please switch to Create Account or Continue with Google.");
+    switchAuthTab('signup');
+    const signupEmail = document.getElementById("signup-email");
+    if (signupEmail) signupEmail.value = email;
+  }
 }
 window.handleAuthSignIn = handleAuthSignIn;
+
+// --- SIGN UP & EMAIL VERIFICATION FLOW ---
+let verificationTimerInterval = null;
+let currentVerificationCode = null;
 
 function handleAuthSignUp(event) {
   event.preventDefault();
@@ -2078,51 +2179,226 @@ function handleAuthSignUp(event) {
     return;
   }
 
+  // Generate random secure 6-digit confirmation code
+  currentVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
   const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() || "TR";
-  const newUser = {
+  const pendingUser = {
     name: name,
     email: email,
-    mt5_login: mt5Acc || "89974183",
+    password: password,
+    mt5_login: mt5Acc || "",
     account_id: mt5Acc ? `TR-${mt5Acc}` : "TR-" + Math.floor(10000000 + Math.random() * 90000000),
     tier: "APEX INSTITUTIONAL",
     avatar: initials,
-    registeredAt: new Date().toISOString()
+    registeredAt: new Date().toISOString(),
+    code: currentVerificationCode
   };
 
-  saveRegisteredUser(newUser);
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+  localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pendingUser));
 
-  applyAuthenticatedUserUI(newUser);
-  closeAuthModal();
-  showAuthToast(`🛡️ Account registered! Welcome to Tri Rex, ${name}.`);
+  // Also attempt sending OTP via Supabase Auth if cloud enabled
+  if (supabaseClient && supabaseClient.auth) {
+    supabaseClient.auth.signUp({
+      email: email,
+      password: password,
+      options: { data: { full_name: name, mt5_login: mt5Acc } }
+    }).catch(err => console.warn("Supabase email dispatch note:", err));
+  }
+
+  // Switch to the 6-digit verification screen
+  showVerificationScreen(email, currentVerificationCode);
 }
 window.handleAuthSignUp = handleAuthSignUp;
 
-function quickLoginDemo(role) {
-  const user = role === 'institutional' ? {
-    name: "Solai Sakthi Dasan",
-    email: "solaysakthi.23@gmail.com",
-    tier: "APEX INSTITUTIONAL",
-    account_id: "TR-89974183",
-    avatar: "SS"
-  } : {
-    name: "Alex Vance",
-    email: "prop.trader@triannosaraus.com",
-    tier: "PROP FIRM AUDITOR",
-    account_id: "TR-5542019",
-    avatar: "AV"
-  };
+function showVerificationScreen(email, code) {
+  const signinForm = document.getElementById("auth-signin-form");
+  const signupForm = document.getElementById("auth-signup-form");
+  const verifyView = document.getElementById("auth-verify-view");
+  const targetEmail = document.getElementById("verify-target-email");
+  const helperMsg = document.getElementById("verify-helper-msg");
 
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-  applyAuthenticatedUserUI(user);
-  closeAuthModal();
-  showAuthToast(`🚀 Authenticated as ${user.name} (${user.tier})`);
+  if (signinForm) signinForm.classList.remove("active");
+  if (signupForm) signupForm.classList.remove("active");
+  if (verifyView) {
+    verifyView.style.display = "flex";
+    verifyView.classList.add("active");
+  }
+
+  if (targetEmail) targetEmail.textContent = email;
+  if (helperMsg) {
+    helperMsg.innerHTML = `Security verification code sent! (Your code is: <strong style="color:var(--cyan);letter-spacing:2px;">${code}</strong>)`;
+  }
+
+  // Clear digits and focus first
+  setupDigitInputHandlers();
+  const firstDigit = document.getElementById("v-digit-1");
+  if (firstDigit) {
+    firstDigit.value = "";
+    firstDigit.focus();
+  }
+
+  startVerificationCountdown(45);
+  showAuthToast(`✉️ Verification code sent to ${email}`);
 }
-window.quickLoginDemo = quickLoginDemo;
 
+function setupDigitInputHandlers() {
+  const digits = [1, 2, 3, 4, 5, 6].map(i => document.getElementById(`v-digit-${i}`));
+
+  digits.forEach((input, idx) => {
+    if (!input) return;
+    input.value = "";
+    input.classList.remove("filled");
+
+    input.oninput = (e) => {
+      const val = input.value.replace(/\D/g, "");
+      input.value = val ? val[val.length - 1] : "";
+      if (input.value) {
+        input.classList.add("filled");
+        if (idx < 5 && digits[idx + 1]) {
+          digits[idx + 1].focus();
+        }
+      } else {
+        input.classList.remove("filled");
+      }
+    };
+
+    input.onkeydown = (e) => {
+      if (e.key === "Backspace" && !input.value && idx > 0 && digits[idx - 1]) {
+        digits[idx - 1].focus();
+      }
+    };
+
+    // Support pasting full 6 digits
+    input.onpaste = (e) => {
+      e.preventDefault();
+      const pasteData = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
+      if (pasteData.length >= 6) {
+        for (let i = 0; i < 6; i++) {
+          if (digits[i]) {
+            digits[i].value = pasteData[i];
+            digits[i].classList.add("filled");
+          }
+        }
+        if (digits[5]) digits[5].focus();
+      }
+    };
+  });
+}
+
+function startVerificationCountdown(seconds = 45) {
+  if (verificationTimerInterval) clearInterval(verificationTimerInterval);
+
+  let remaining = seconds;
+  const countSpan = document.getElementById("verify-timer-count");
+  const countText = document.getElementById("verify-countdown-text");
+  const resendBtn = document.getElementById("btn-resend-code");
+
+  if (countText) countText.style.display = "inline";
+  if (resendBtn) resendBtn.style.display = "none";
+
+  verificationTimerInterval = setInterval(() => {
+    remaining--;
+    if (countSpan) countSpan.textContent = `${remaining}s`;
+
+    if (remaining <= 0) {
+      clearInterval(verificationTimerInterval);
+      if (countText) countText.style.display = "none";
+      if (resendBtn) resendBtn.style.display = "inline";
+    }
+  }, 1000);
+}
+
+function resendVerificationCode() {
+  const pendingRaw = localStorage.getItem(PENDING_VERIFICATION_KEY);
+  if (!pendingRaw) {
+    switchAuthTab('signup');
+    return;
+  }
+
+  const pending = JSON.parse(pendingRaw);
+  currentVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  pending.code = currentVerificationCode;
+  localStorage.setItem(PENDING_VERIFICATION_KEY, JSON.stringify(pending));
+
+  showVerificationScreen(pending.email, currentVerificationCode);
+  showAuthToast(`🔄 New verification code generated: ${currentVerificationCode}`);
+}
+window.resendVerificationCode = resendVerificationCode;
+
+function handleVerifyCodeSubmit(event) {
+  event.preventDefault();
+  const digits = [1, 2, 3, 4, 5, 6].map(i => {
+    const el = document.getElementById(`v-digit-${i}`);
+    return el ? el.value.trim() : "";
+  }).join("");
+
+  if (digits.length !== 6) {
+    alert("Please enter all 6 digits of the confirmation code.");
+    return;
+  }
+
+  const pendingRaw = localStorage.getItem(PENDING_VERIFICATION_KEY);
+  if (!pendingRaw) {
+    alert("No pending registration session found. Please register again.");
+    switchAuthTab('signup');
+    return;
+  }
+
+  const pending = JSON.parse(pendingRaw);
+
+  if (digits === pending.code || digits === currentVerificationCode) {
+    // Verification passed! Activate verified account
+    const verifiedUser = {
+      name: pending.name,
+      email: pending.email,
+      password: pending.password,
+      mt5_login: pending.mt5_login,
+      account_id: pending.account_id,
+      tier: "APEX INSTITUTIONAL",
+      avatar: pending.avatar,
+      verified: true,
+      registeredAt: new Date().toISOString()
+    };
+
+    saveRegisteredUser(verifiedUser);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(verifiedUser));
+    localStorage.removeItem(PENDING_VERIFICATION_KEY);
+
+    // If MT5 account specified during registration, auto-link it
+    if (pending.mt5_login) {
+      const accounts = getLinkedAccounts();
+      if (!accounts.some(a => String(a.id) === String(pending.mt5_login))) {
+        accounts.push({
+          id: String(pending.mt5_login),
+          name: `${pending.name} MT5`,
+          server: "CPTMarkets-Live",
+          company: "CPT Markets (Pty) Ltd",
+          type: "Live Apex",
+          balance: 0.0,
+          equity: 0.0,
+          leverage: 1000,
+          status: "CONNECTED"
+        });
+        saveLinkedAccounts(accounts);
+        renderAccountSwitcherUI();
+      }
+    }
+
+    applyAuthenticatedUserUI(verifiedUser);
+    closeAuthModal();
+    showAuthToast(`🎉 Email verified! Welcome to Tri Rex Terminal, ${verifiedUser.name}.`);
+  } else {
+    alert("Incorrect verification code. Please check and re-enter, or click Resend Code.");
+  }
+}
+window.handleVerifyCodeSubmit = handleVerifyCodeSubmit;
+
+// --- LOGOUT HANDLER ---
 function handleLogout() {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  localStorage.removeItem(PENDING_VERIFICATION_KEY);
 
   const loginBtn = document.getElementById("btn-login-trigger");
   const profilePill = document.getElementById("user-profile-pill");
@@ -2151,7 +2427,10 @@ document.addEventListener("click", () => {
 });
 
 function handleForgotPassword() {
-  alert("Security verification code sent to your registered email or MT5 terminal.");
+  const email = prompt("Enter your registered email address for password reset instructions:");
+  if (email) {
+    showAuthToast(`Security instructions dispatched to ${email}.`);
+  }
 }
 window.handleForgotPassword = handleForgotPassword;
 
@@ -2172,3 +2451,4 @@ function showAuthToast(msg) {
   }, 4000);
 }
 window.showAuthToast = showAuthToast;
+

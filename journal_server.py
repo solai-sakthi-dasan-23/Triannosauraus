@@ -85,45 +85,11 @@ def load_journal_from_file():
             print(f"Error loading journal DB: {e}")
             journal_history = []
     else:
-        # Pre-seed with the official 4-day benchmark trades if available
-        seed_benchmark_trades()
+        journal_history = []
 
 def seed_benchmark_trades():
-    global journal_history
-    benchmark_file = "V8_Backtest_Report_Sep08_to_Sep11_2026.xlsx"
-    if os.path.exists(benchmark_file):
-        try:
-            import pandas as pd
-            df = pd.read_excel(benchmark_file, sheet_name="V8_Trade_Logs_Drawdown")
-            seeded = []
-            for _, r in df.iterrows():
-                seeded.append({
-                    "id": str(r["Trade ID"]),
-                    "symbol": "XAUUSD",
-                    "date": str(r["Date"]),
-                    "open_time": str(r["Time"]),
-                    "close_time": str(r["Time"]),
-                    "session": str(r["Session"]),
-                    "setup_name": str(r["Setup Name"]),
-                    "execution_type": str(r["Execution Type"]),
-                    "flip_depth": int(r["Flip Depth"]),
-                    "type": "BUY" if "Flip" not in str(r["Setup Name"]) else "SELL",
-                    "lots": float(r["Volume"]),
-                    "entry_price": float(r["Price"]),
-                    "exit_price": float(r["Price"] + (r["Profit ($)"] if "BUY" in str(r["Setup Name"]) else -r["Profit ($)"])),
-                    "sl": float(r["SL"]),
-                    "tp": float(r["TP"]),
-                    "pnl": float(r["Profit ($)"]),
-                    "outcome": str(r["Outcome"]),
-                    "mae": float(r.get("Max Drawdown MAE ($)", -2.0)),
-                    "mfe": float(r.get("Max Runup MFE ($)", 5.0)),
-                    "status": "CLOSED"
-                })
-            journal_history = seeded
-            save_journal_to_file()
-            print(f"Seeded {len(journal_history)} benchmark trades into Journal DB")
-        except Exception as e:
-            print(f"Could not seed from benchmark: {e}")
+    # Retained as dummy reference only, not auto-seeded
+    pass
 
 def save_journal_to_file():
     try:

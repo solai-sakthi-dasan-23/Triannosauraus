@@ -8,10 +8,10 @@
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-Frame-Options" content="DENY">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <link rel="icon" type="image/png" href="assets/logo.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/journal.css">
+  <!-- Supabase Client for Real Authentication & OAuth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -47,7 +47,7 @@
         <button class="nav-item" data-page="journal" onclick="navigateTo('journal')">
           <span class="nav-icon">📖</span>
           <span class="nav-label">Trade Log & Audit</span>
-          <span class="nav-badge" id="sidebar-journal-badge">156</span>
+          <span class="nav-badge" id="sidebar-journal-badge">0</span>
         </button>
 
         <button class="nav-item" data-page="calendar" onclick="navigateTo('calendar')">
@@ -144,30 +144,26 @@
             <span id="ws-text">CONNECTING HUB...</span>
           </div>
 
-          <button class="btn-topbar-action" id="btn-simulate-trade" onclick="triggerSampleTrade()" title="Simulate incoming Webhook trade">
-            <span class="btn-icon">⚡</span> Emulate V8 Order
-          </button>
-
           <!-- Customer Auth & Profile Pill -->
           <div id="auth-topbar-container">
             <button class="btn-auth-trigger" id="btn-login-trigger" onclick="openAuthModal('signin')">
               <span>🔐</span> Trader Login
             </button>
             <div class="user-profile-pill" id="user-profile-pill" style="display: none;" onclick="toggleUserDropdown(event)">
-              <div class="user-avatar" id="topbar-avatar">SS</div>
+              <div class="user-avatar" id="topbar-avatar">TR</div>
               <div class="user-info-text">
-                <span class="user-name" id="topbar-username">Solai Sakthi Dasan</span>
-                <span class="user-tier" id="topbar-usertier">APEX INSTITUTIONAL</span>
+                <span class="user-name" id="topbar-username">Trader Workstation</span>
+                <span class="user-tier" id="topbar-usertier">VERIFIED TRADER</span>
               </div>
               <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 0.2rem;">▼</span>
 
               <!-- User Dropdown Menu -->
               <div class="user-dropdown-menu" id="user-dropdown-menu">
                 <div class="dropdown-header-card">
-                  <div style="font-weight: 700; font-size: 0.85rem; color: #FFF;" id="dropdown-full-name">Solai Sakthi Dasan</div>
-                  <div class="dropdown-user-email" id="dropdown-email">solaysakthi.23@gmail.com</div>
-                  <div style="font-size: 0.65rem; color: var(--gold); margin-top: 3px; font-family: var(--font-mono);">
-                    ID: TR-89974183 · Verified
+                  <div style="font-weight: 700; font-size: 0.85rem; color: #FFF;" id="dropdown-full-name">Trader Workstation</div>
+                  <div class="dropdown-user-email" id="dropdown-email">trader@domain.com</div>
+                  <div style="font-size: 0.65rem; color: var(--gold); margin-top: 3px; font-family: var(--font-mono);" id="dropdown-status-tag">
+                    Customer Account · Verified
                   </div>
                 </div>
                 <button class="dropdown-btn" onclick="navigateTo('settings'); toggleUserDropdown(event);">
@@ -193,23 +189,23 @@
       <div class="top-kpi-ribbon">
         <div class="kpi-mini-card">
           <div class="kpi-mini-label">TOTAL TRADES</div>
-          <div class="kpi-mini-value" id="kpi-total">156</div>
-          <div class="kpi-mini-sub">Live & Seeded</div>
+          <div class="kpi-mini-value" id="kpi-total">0</div>
+          <div class="kpi-mini-sub">Live & Verified</div>
         </div>
         <div class="kpi-mini-card">
           <div class="kpi-mini-label">NET PROFIT</div>
-          <div class="kpi-mini-value text-green" id="kpi-pnl">+$295.04</div>
+          <div class="kpi-mini-value text-green" id="kpi-pnl">$0.00</div>
           <div class="kpi-mini-sub" id="kpi-pnl-sub">All Sessions</div>
         </div>
         <div class="kpi-mini-card">
           <div class="kpi-mini-label">WIN RATE</div>
-          <div class="kpi-mini-value text-cyan" id="kpi-winrate">73.1%</div>
-          <div class="kpi-mini-sub" id="kpi-wl-ratio">114 W / 42 L</div>
+          <div class="kpi-mini-value text-cyan" id="kpi-winrate">0.0%</div>
+          <div class="kpi-mini-sub" id="kpi-wl-ratio">0 W / 0 L</div>
         </div>
         <div class="kpi-mini-card">
           <div class="kpi-mini-label">PROFIT FACTOR</div>
-          <div class="kpi-mini-value text-gold" id="kpi-pf">3.39</div>
-          <div class="kpi-mini-sub" id="kpi-gp-gl">GP: $418.5 | GL: $123.5</div>
+          <div class="kpi-mini-value text-gold" id="kpi-pf">0.00</div>
+          <div class="kpi-mini-sub" id="kpi-gp-gl">GP: $0.0 | GL: $0.0</div>
         </div>
         <div class="kpi-mini-card">
           <div class="kpi-mini-label">ACTIVE FLOATING PNL</div>
@@ -236,7 +232,6 @@
               <div class="radar-scan"></div>
               <div class="empty-title">Radar Scanning for Active MT5 Trades...</div>
               <div class="empty-sub">No live positions open right now. When your MT5 EA executes an order via webhook, it appears instantly with real-time Copilot decision guidance.</div>
-              <button class="btn-primary" onclick="triggerSampleTrade()">Launch Demo XAUUSD V8 Setup</button>
             </div>
           </div>
         </div>
@@ -641,31 +636,31 @@
               <div class="mt5-account-status-box">
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">ACCOUNT LOGIN</span>
-                  <span class="mt5-row-val" id="cfg-mt5-login">89974183</span>
+                  <span class="mt5-row-val" id="cfg-mt5-login">—</span>
                 </div>
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">BROKER SERVER</span>
-                  <span class="mt5-row-val" id="cfg-mt5-server">CPTMarkets-Live</span>
+                  <span class="mt5-row-val" id="cfg-mt5-server">—</span>
                 </div>
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">ACCOUNT HOLDER</span>
-                  <span class="mt5-row-val" id="cfg-mt5-name">Solai Sakthi Dasan</span>
+                  <span class="mt5-row-val" id="cfg-mt5-name">Verified Trader</span>
                 </div>
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">BROKER ENTITY</span>
-                  <span class="mt5-row-val" id="cfg-mt5-company">CPT Markets (Pty) Ltd</span>
+                  <span class="mt5-row-val" id="cfg-mt5-company">MetaTrader 5 Bridge</span>
                 </div>
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">LIVE BALANCE / EQUITY</span>
-                  <span class="mt5-row-val text-green" id="cfg-mt5-balance">$4.51 / $4.51 USD</span>
+                  <span class="mt5-row-val text-green" id="cfg-mt5-balance">$0.00 / $0.00 USD</span>
                 </div>
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">ACCOUNT LEVERAGE</span>
-                  <span class="mt5-row-val" id="cfg-mt5-leverage">1:1000 (Broker Reported)</span>
+                  <span class="mt5-row-val" id="cfg-mt5-leverage">—</span>
                 </div>
                 <div class="mt5-status-row">
                   <span class="mt5-row-label">TERMINAL STATUS</span>
-                  <span class="pill-status pill-win" id="cfg-mt5-status">CONNECTED (MQL5 API)</span>
+                  <span class="pill-status pill-be" id="cfg-mt5-status">STANDBY (AWAITING LINK)</span>
                 </div>
               </div>
 
@@ -804,11 +799,26 @@
         
         <!-- ── SIGN IN FORM ── -->
         <form class="auth-view active" id="auth-signin-form" onsubmit="handleAuthSignIn(event)">
+          <!-- Continue with Google Button -->
+          <button type="button" class="btn-google-auth" onclick="handleGoogleAuth()">
+            <svg class="google-icon-svg" viewBox="0 0 24 24" width="18" height="18">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <div class="auth-divider">
+            <span>OR CONTINUE WITH EMAIL</span>
+          </div>
+
           <div class="form-group">
             <label class="form-label" for="signin-email">Trader Email or Account ID</label>
             <div class="input-with-icon">
               <span class="input-icon">👤</span>
-              <input type="text" id="signin-email" class="auth-input" placeholder="trader@triannosaraus.com" required autocomplete="username">
+              <input type="text" id="signin-email" class="auth-input" placeholder="trader@domain.com" required autocomplete="username">
             </div>
           </div>
 
@@ -829,29 +839,33 @@
             <label for="signin-remember">Remember this workstation for 30 days</label>
           </div>
 
-          <button type="submit" class="btn-auth-submit">
+          <button type="submit" class="btn-auth-submit" id="btn-signin-submit">
             <span>⚡ Sign In to Terminal</span>
           </button>
-
-          <div class="auth-demo-divider">Instant Demo Access</div>
-
-          <div class="demo-buttons-row">
-            <button type="button" class="btn-demo-quick" onclick="quickLoginDemo('institutional')">
-              <span>🏛️</span> Institutional Fund
-            </button>
-            <button type="button" class="btn-demo-quick" onclick="quickLoginDemo('prop')">
-              <span>💎</span> Prop Firm Trader
-            </button>
-          </div>
         </form>
 
         <!-- ── SIGN UP FORM ── -->
         <form class="auth-view" id="auth-signup-form" onsubmit="handleAuthSignUp(event)">
+          <!-- Continue with Google Button -->
+          <button type="button" class="btn-google-auth" onclick="handleGoogleAuth()">
+            <svg class="google-icon-svg" viewBox="0 0 24 24" width="18" height="18">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <div class="auth-divider">
+            <span>OR SIGN UP WITH EMAIL</span>
+          </div>
+
           <div class="form-group">
             <label class="form-label" for="signup-name">Trader Full Name</label>
             <div class="input-with-icon">
               <span class="input-icon">🏷️</span>
-              <input type="text" id="signup-name" class="auth-input" placeholder="Solai Sakthi Dasan" required>
+              <input type="text" id="signup-name" class="auth-input" placeholder="Your full name" required>
             </div>
           </div>
 
@@ -867,7 +881,7 @@
             <label class="form-label" for="signup-mt5">MT5 Account ID (Optional)</label>
             <div class="input-with-icon">
               <span class="input-icon">📈</span>
-              <input type="text" id="signup-mt5" class="auth-input" placeholder="89974183 (Auto-bind)">
+              <input type="text" id="signup-mt5" class="auth-input" placeholder="e.g. 89974183 (Auto-bind)">
             </div>
           </div>
 
@@ -898,10 +912,52 @@
             <label for="signup-terms">I agree to Tri Rex Quantitative Risk Guidelines & Privacy Policy</label>
           </div>
 
-          <button type="submit" class="btn-auth-submit">
-            <span>🛡️ Create Trader Profile</span>
+          <button type="submit" class="btn-auth-submit" id="btn-signup-submit">
+            <span>🛡️ Continue to Verification</span>
           </button>
         </form>
+
+        <!-- ── 6-DIGIT EMAIL VERIFICATION VIEW ── -->
+        <div class="auth-view" id="auth-verify-view" style="display: none;">
+          <div class="verify-header">
+            <div class="verify-icon-bubble">✉️</div>
+            <h3 class="verify-title">VERIFY YOUR EMAIL</h3>
+            <p class="verify-subtitle">
+              We sent a 6-digit confirmation code to <br>
+              <strong id="verify-target-email" class="text-cyan">trader@domain.com</strong>
+            </p>
+          </div>
+
+          <form id="auth-verify-form" onsubmit="handleVerifyCodeSubmit(event)">
+            <div class="digit-inputs-row">
+              <input type="text" maxlength="1" class="verify-digit-input" id="v-digit-1" inputmode="numeric" pattern="[0-9]*" autofocus autocomplete="one-time-code">
+              <input type="text" maxlength="1" class="verify-digit-input" id="v-digit-2" inputmode="numeric" pattern="[0-9]*">
+              <input type="text" maxlength="1" class="verify-digit-input" id="v-digit-3" inputmode="numeric" pattern="[0-9]*">
+              <input type="text" maxlength="1" class="verify-digit-input" id="v-digit-4" inputmode="numeric" pattern="[0-9]*">
+              <input type="text" maxlength="1" class="verify-digit-input" id="v-digit-5" inputmode="numeric" pattern="[0-9]*">
+              <input type="text" maxlength="1" class="verify-digit-input" id="v-digit-6" inputmode="numeric" pattern="[0-9]*">
+            </div>
+
+            <div class="verify-helper-text" id="verify-helper-msg">
+              Enter the 6-digit code to verify your account and activate terminal access.
+            </div>
+
+            <button type="submit" class="btn-auth-submit" id="btn-confirm-verify">
+              <span>✅ Confirm & Launch Terminal</span>
+            </button>
+
+            <div class="verify-resend-row">
+              <span id="verify-countdown-text">Resend code in <strong id="verify-timer-count">45s</strong></span>
+              <button type="button" class="btn-resend-code" id="btn-resend-code" onclick="resendVerificationCode()" style="display: none;">
+                Resend Code
+              </button>
+              <span style="margin: 0 0.5rem; color: var(--border-color);">·</span>
+              <button type="button" class="btn-change-email" onclick="switchAuthTab('signup')">
+                Change Email
+              </button>
+            </div>
+          </form>
+        </div>
 
       </div>
 
